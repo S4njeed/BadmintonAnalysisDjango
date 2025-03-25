@@ -1,0 +1,116 @@
+{% extends 'analyzer/base.html' %}
+
+{% block title %}Upload Video - Smart Badminton Coach{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h4 mb-0">Upload Video for Analysis</h2>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label for="{{ form.input_video.id_for_label }}" class="form-label">
+                            <i class="fas fa-video me-2"></i>Select Video
+                        </label>
+                        <div class="input-group">
+                            {{ form.input_video }}
+                        </div>
+                        {% if form.input_video.errors %}
+                            <div class="text-danger small">{{ form.input_video.errors }}</div>
+                        {% endif %}
+                        <div class="form-text text-muted">
+                            Supported formats: MP4, MOV, AVI. Maximum size: 100MB
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="fas fa-crosshairs me-2"></i>Shot Type
+                        </label>
+                        <div class="row">
+                            {% for radio in form.shot_type %}
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        {{ radio.tag }}
+                                        <label class="form-check-label" for="{{ radio.id_for_label }}">
+                                            {{ radio.choice_label }}
+                                        </label>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% if form.shot_type.errors %}
+                            <div class="text-danger small">{{ form.shot_type.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                data-bs-toggle="collapse" data-bs-target="#advancedOptions">
+                            <i class="fas fa-cog me-1"></i> Advanced Options
+                        </button>
+                    </div>
+                    
+                    <div id="advancedOptions" class="collapse">
+                        <div class="card mb-4">
+                            <div class="card-body bg-light">
+                                <div class="mb-3">
+                                    <label for="{{ form.process_interval.id_for_label }}" class="form-label">
+                                        Frame Skip Interval
+                                    </label>
+                                    {{ form.process_interval }}
+                                    {% if form.process_interval.errors %}
+                                        <div class="text-danger small">{{ form.process_interval.errors }}</div>
+                                    {% endif %}
+                                    <div class="form-text text-muted">
+                                        Process every Nth frame. Higher values = faster but less accurate.
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label for="{{ form.source_fps.id_for_label }}" class="form-label">
+                                        Source Video FPS (optional)
+                                    </label>
+                                    {{ form.source_fps }}
+                                    {% if form.source_fps.errors %}
+                                        <div class="text-danger small">{{ form.source_fps.errors }}</div>
+                                    {% endif %}
+                                    <div class="form-text text-muted">
+                                        Leave empty for auto-detection. Specify if known (e.g., 30, 60, 120).
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info" role="alert">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-info-circle me-2"></i>Processing Information
+                        </h5>
+                        <p>
+                            Analysis can take several minutes depending on video length and settings.
+                            You'll be redirected to the analysis page where you can track progress.
+                        </p>
+                        <hr>
+                        <div class="small mb-0">
+                            <strong>Tips for faster processing:</strong> For longer videos, 
+                            increase the frame skip interval to analyze fewer frames.
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-upload me-2"></i>Upload & Analyze
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

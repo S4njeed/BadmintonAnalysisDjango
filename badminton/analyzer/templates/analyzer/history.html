@@ -1,0 +1,81 @@
+{% extends 'analyzer/base.html' %}
+
+{% block title %}Analysis History - Smart Badminton Coach{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="h2 mb-3">
+        <i class="fas fa-history me-2"></i>
+        Analysis History
+    </h1>
+    <p class="text-muted">
+        View and manage your previous video analyses
+    </p>
+</div>
+
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h2 class="h5 mb-0">Your Analyses</h2>
+    </div>
+    <div class="card-body">
+        {% if analyses %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Date</th>
+                            <th>Shot Type</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for analysis in analyses %}
+                            <tr>
+                                <td>{{ analysis.id }}</td>
+                                <td>{{ analysis.created_at|date:"M d, Y - H:i" }}</td>
+                                <td>{{ analysis.get_shot_type_display }}</td>
+                                <td>
+                                    {% if analysis.is_analyzed %}
+                                        <span class="badge bg-success">Completed</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">Not Analyzed</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'analyzer:analysis_detail' analysis.id %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i> View
+                                    </a>
+                                    {% if analysis.is_analyzed and analysis.output_video %}
+                                        <a href="{% url 'analyzer:download_analysis' analysis.id %}" class="btn btn-sm btn-outline-success ms-1">
+                                            <i class="fas fa-download me-1"></i> Download
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-video mb-3" style="font-size: 3rem; color: #ddd;"></i>
+                <h3 class="h5">No Analyses Found</h3>
+                <p class="text-muted">You haven't uploaded any videos for analysis yet.</p>
+                <a href="{% url 'analyzer:upload_video' %}" class="btn btn-primary mt-2">
+                    <i class="fas fa-upload me-2"></i> Upload Video
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if analyses %}
+    <div class="text-center mt-4">
+        <a href="{% url 'analyzer:upload_video' %}" class="btn btn-primary">
+            <i class="fas fa-upload me-2"></i> Upload New Video
+        </a>
+    </div>
+{% endif %}
+{% endblock %}

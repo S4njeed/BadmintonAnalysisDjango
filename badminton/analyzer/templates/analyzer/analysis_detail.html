@@ -1,0 +1,508 @@
+{% extends 'analyzer/base.html' %}
+
+{% block title %}Analysis #{{ analysis.id }} - Smart Badminton Coach{% endblock %}
+
+{% block extra_css %}
+<!-- Plyr.js CSS -->
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
+<style>
+    .plyr {
+        border-radius: 0.25rem;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .plyr--full-ui input[type=range] {
+        color: #0d6efd; /* Bootstrap primary color */
+    }
+    
+    .plyr__control--overlaid {
+        background: rgba(13, 110, 253, 0.8); /* Bootstrap primary with opacity */
+    }
+    
+    .plyr--video .plyr__control:hover {
+        background: #0d6efd;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="h2 mb-3">
+        <i class="fas fa-chart-line me-2"></i>
+        {{ analysis.title|default:"Analysis" }} #{{ analysis.id }}
+    </h1>
+    <p class="text-muted">
+        <i class="far fa-calendar-alt me-2"></i>
+        {{ analysis.created_at|date:"F d, Y, g:i a" }}
+        <span class="ms-3">
+            <i class="fas fa-crosshairs me-2"></i>
+            Shot Type: {{ analysis.get_shot_type_display }}
+        </span>
+    </p>
+</div>
+
+<div id="analysisProgress" class="card mb-4" {% if not is_running %}style="display: none;"{% endif %}>
+    <div class="card-header bg-primary text-white">
+        <h3 class="h5 mb-0">Analysis in Progress</h3>
+    </div>
+    <div class="card-body">
+        <div class="progress mb-3">
+            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                 role="progressbar" style="width: 0%">
+                0%
+            </div>
+        </div>
+        <div id="statusMessage" class="text-center mb-3">
+            Initializing analysis...
+        </div>
+        <div class="text-center">
+            <button id="stopAnalysisBtn" class="btn btn-danger">
+                <i class="fas fa-stop me-2"></i>Stop Analysis
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    {% if not analysis.is_analyzed %}
+        <div id="startAnalysisCard" class="col-12 mb-4" {% if is_running %}style="display: none;"{% endif %}>
+            <div class="card h-100">
+                <div class="card-body text-center py-5">
+                    <h3 class="h5 mb-3">Analysis Not Started</h3>
+                    <p class="mb-4">This video has not been analyzed yet.</p>
+                    <button id="startAnalysisBtn" class="btn btn-primary">
+                        <i class="fas fa-play me-2"></i>Start Analysis
+                    </button>
+                </div>
+            </div>
+        </div>
+    {% elif analysis.is_analyzed %}
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="h5 mb-0">Key Frames</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="key-frame-container text-center">
+                                <h4 class="h6 mb-2">Pre-Hit Form</h4>
+                                {% if analysis.pre_hit_frame %}
+                                    <img src="{{ analysis.pre_hit_frame.url }}" alt="Pre-hit Form" class="key-frame-img">
+                                {% else %}
+                                    <div class="key-frame-img d-flex align-items-center justify-content-center bg-light">
+                                        <span class="text-muted">No frame detected</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="key-frame-container text-center">
+                                <h4 class="h6 mb-2">Hit Moment</h4>
+                                {% if analysis.hit_frame %}
+                                    <img src="{{ analysis.hit_frame.url }}" alt="Hit Moment" class="key-frame-img">
+                                {% else %}
+                                    <div class="key-frame-img d-flex align-items-center justify-content-center bg-light">
+                                        <span class="text-muted">No frame detected</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="key-frame-container text-center">
+                                <h4 class="h6 mb-2">Follow-Through</h4>
+                                {% if analysis.follow_through_frame %}
+                                    <img src="{{ analysis.follow_through_frame.url }}" alt="Follow-Through" class="key-frame-img">
+                                {% else %}
+                                    <div class="key-frame-img d-flex align-items-center justify-content-center bg-light">
+                                        <span class="text-muted">No frame detected</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if analysis.output_video %}
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="h5 mb-0">Analyzed Video</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                           {% if analysis.hls_path %}
+                               <!-- HLS Video Player -->
+                               <video class="plyr-video" playsinline controls data-poster="{{ analysis.pre_hit_frame.url|default:'' }}">
+                                   <source src="{{ MEDIA_URL }}{{ analysis.hls_path }}" type="application/x-mpegURL">
+                                   <!-- Fallback to regular MP4 if HLS fails -->
+                                   <source src="{{ analysis.output_video.url }}" type="video/mp4">
+                               </video>
+                           {% else %}
+                               <!-- Regular MP4 Video Player -->
+                               <video class="plyr-video" playsinline controls data-poster="{{ analysis.pre_hit_frame.url|default:'' }}">
+                                   <source src="{{ analysis.output_video.url }}" type="video/mp4">
+                               </video>
+                           {% endif %}
+                        </div>
+                        <div class="text-center">
+                            <a href="{% url 'analyzer:download_analysis' analysis.id %}" class="btn btn-outline-primary">
+                                <i class="fas fa-download me-2"></i>Download Video
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            {% if analysis.analysis_summary %}
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="h5 mb-0">Analysis Summary</h3>
+                    </div>
+                    <div class="card-body">
+                        {% if analysis.analysis_summary.status == 'complete' %}
+                            <div class="mb-3">
+                                <h4 class="h6">Shot Type</h4>
+                                <p>{{ analysis.get_shot_type_display }}</p>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <h4 class="h6">Timing Analysis</h4>
+                                <table class="table table-sm">
+                                    <tbody>
+                                        <tr>
+                                            <td>Preparation Time:</td>
+                                            <td>{{ analysis.analysis_summary.timing.preparation_time|floatformat:3 }}s</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Follow Through Time:</td>
+                                            <td>{{ analysis.analysis_summary.timing.follow_through_time|floatformat:3 }}s</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Total Shot Duration:</td>
+                                            <td>
+                                                {{ analysis.analysis_summary.timing.preparation_time|add:analysis.analysis_summary.timing.follow_through_time|floatformat:3 }}s
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-warning">
+                                <h4 class="alert-heading h6">Incomplete Analysis</h4>
+                                <p class="mb-0">{{ analysis.analysis_summary.message }}</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="h5 mb-0">Configuration</h3>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h4 class="h6">Processing Settings</h4>
+                        <ul class="list-unstyled">
+                            <li>
+                                <strong>Frame Skip Interval:</strong> {{ analysis.process_interval }}
+                                <small class="text-muted">(Every {{ analysis.process_interval }} frame analyzed)</small>
+                            </li>
+                            <li>
+                                <strong>Source FPS:</strong> 
+                                {{ analysis.source_fps|default:"Auto-detected" }}
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if is_running or not analysis.is_analyzed %}
+<script>
+    $(document).ready(function() {
+        const analysisId = {{ analysis.id }};
+        let progressInterval;
+        
+        // Start analysis function
+        function startAnalysis() {
+            // Show progress UI immediately and hide start card
+            $('#analysisProgress').show();
+            $('#startAnalysisCard').hide();
+            
+            // Reset progress to 0
+            const progressBar = $('.progress-bar');
+            progressBar.css('width', '0%');
+            progressBar.text('0%');
+            $('#statusMessage').text('Starting analysis...');
+
+            $.ajax({
+                url: "{% url 'analyzer:start_analysis' analysis.id %}",
+                type: "POST",
+                success: function(data) {
+                    if (data.status === 'started' || data.status === 'running') {
+                        // Start progress polling
+                        startProgressPolling();
+                    } else {
+                        alert('Error: ' + data.message);
+                        // If error, revert UI
+                        $('#analysisProgress').hide();
+                        $('#startAnalysisCard').show();
+                    }
+                },
+                error: function() {
+                    alert('Error starting analysis. Please try again.');
+                    // If error, revert UI
+                    $('#analysisProgress').hide();
+                    $('#startAnalysisCard').show();
+                }
+            });
+        }
+        
+        // Stop analysis function
+        function stopAnalysis() {
+            $.ajax({
+                url: "{% url 'analyzer:stop_analysis' analysis.id %}",
+                type: "POST",
+                success: function(data) {
+                    $('#statusMessage').text(data.message);
+                },
+                error: function() {
+                    alert('Error stopping analysis. Please try again.');
+                }
+            });
+        }
+        
+        // Poll for progress updates
+        function startProgressPolling() {
+            // Clear any existing interval
+            if (progressInterval) {
+                clearInterval(progressInterval);
+            }
+            
+            // First immediate check to get initial status
+            checkProgress();
+            
+            // Set up new polling interval
+            progressInterval = setInterval(checkProgress, 1000); // Poll every second
+        }
+        
+        // Function to check progress
+        function checkProgress() {
+            console.log("Checking progress for analysis ID: {{ analysis.id }}");
+            
+            $.ajax({
+                url: "{% url 'analyzer:analysis_progress' analysis.id %}",
+                type: "GET",
+                success: function(data) {
+                    console.log("Progress update received:", data); // Debug log
+                    
+                    // Update progress bar only if valid progress is received
+                    const progressBar = $('.progress-bar');
+                    if (typeof data.progress === 'number') {
+                        progressBar.css('width', data.progress + '%');
+                        progressBar.text(data.progress + '%');
+                    }
+                    
+                    // Update status message with fallback
+                    $('#statusMessage').html(
+                        data.message ||
+                        'Processing... (If stuck, try refreshing the page)'
+                    );
+                    
+                    // Handle completion or error
+                    if (data.status === 'completed' || data.status === 'error') {
+                        clearInterval(progressInterval);
+                        
+                        if (data.status === 'completed') {
+                            $('#statusMessage').text('Analysis completed successfully! Reloading page...');
+                            
+                            // Set a flag in localStorage to prevent infinite refresh loop
+                            const refreshKey = 'analysis_' + analysisId + '_refreshed';
+                            if (!localStorage.getItem(refreshKey)) {
+                                // Only reload once
+                                localStorage.setItem(refreshKey, 'true');
+                                setTimeout(function() {
+                                    window.location.reload();
+                                }, 1000);
+                            } else {
+                                // Clear the flag after 30 seconds
+                                setTimeout(function() {
+                                    localStorage.removeItem(refreshKey);
+                                }, 30000);
+                                $('#statusMessage').text('Analysis completed successfully! View results below.');
+                            }
+                        } else if (data.status === 'error') {
+                            $('#statusMessage').text('Error: ' + data.message);
+                        }
+                    }
+                },
+                error: function() {
+                    console.log("Error fetching progress");
+                    $('#statusMessage').text('Error fetching progress. Please wait...');
+                }
+            });
+        }
+        
+        // Bind click handlers
+        $('#startAnalysisBtn').click(startAnalysis);
+        $('#stopAnalysisBtn').click(stopAnalysis);
+        
+        // Start progress polling if analysis is already running
+        {% if is_running %}
+            startProgressPolling();
+        {% endif %}
+    });
+</script>
+{% endif %}
+
+{% if analysis.is_analyzed and analysis.output_video %}
+<!-- HLS.js and Plyr.js -->
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Function to initialize Plyr with HLS
+        function initPlyr(videoElement) {
+            // Check if the source is HLS
+            const source = videoElement.querySelector('source');
+            const isHLS = source && source.src.indexOf('.m3u8') > -1;
+            
+            // Common Plyr options
+            const plyrOptions = {
+                controls: [
+                    'play-large', // The large play button in the center
+                    'restart', // Restart playback
+                    'rewind', // Rewind by the seek time (default 10 seconds)
+                    'play', // Play/pause playback
+                    'fast-forward', // Fast forward by the seek time (default 10 seconds)
+                    'progress', // The progress bar and scrubber for playback and buffering
+                    'current-time', // The current time of playback
+                    'duration', // The full duration of the media
+                    'mute', // Toggle mute
+                    'volume', // Volume control
+                    'captions', // Toggle captions
+                    'settings', // Settings menu
+                    'pip', // Picture-in-picture (currently Safari only)
+                    'airplay', // Airplay (currently Safari only)
+                    'fullscreen' // Toggle fullscreen
+                ],
+                speed: {
+                    selected: 1,
+                    options: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2]
+                },
+                seekTime: 5,
+                keyboard: { focused: true, global: true }
+            };
+            
+            // Initialize Plyr
+            const player = new Plyr(videoElement, plyrOptions);
+            
+            // If it's an HLS source and HLS.js is supported
+            if (isHLS && Hls.isSupported()) {
+                console.log('HLS detected and supported, using HLS.js');
+                const hls = new Hls();
+                hls.loadSource(source.src);
+                hls.attachMedia(videoElement);
+                
+                // Handle HLS events
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    // Play video when manifest is ready
+                    console.log('HLS manifest parsed');
+                    
+                    // Add quality levels if available
+                    if (hls.levels && hls.levels.length > 1) {
+                        // Setup quality options based on available levels
+                        const qualityOptions = hls.levels.map((level, index) => index);
+                        
+                        // Add quality control to Plyr
+                        player.quality = {
+                            default: qualityOptions[0],
+                            options: qualityOptions,
+                            forced: true,
+                            onChange: (quality) => {
+                                hls.currentLevel = quality;
+                            }
+                        };
+                    }
+                });
+                
+                // Handle HLS errors
+                hls.on(Hls.Events.ERROR, function(event, data) {
+                    console.warn('HLS error:', data);
+                    
+                    if (data.fatal) {
+                        switch(data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                // Try to recover network error
+                                console.log('Fatal network error, trying to recover');
+                                hls.startLoad();
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                // Try to recover media error
+                                console.log('Fatal media error, trying to recover');
+                                hls.recoverMediaError();
+                                break;
+                            default:
+                                // Cannot recover, fall back to MP4 if available
+                                console.error('Fatal HLS error, cannot recover');
+                                
+                                // Try fallback to MP4 if available
+                                const mp4Source = Array.from(videoElement.querySelectorAll('source'))
+                                    .find(s => s.type === 'video/mp4');
+                                
+                                if (mp4Source) {
+                                    console.log('Falling back to MP4 source');
+                                    videoElement.src = mp4Source.src;
+                                    videoElement.play();
+                                }
+                                break;
+                        }
+                    }
+                });
+            } else if (isHLS) {
+                // HLS is not supported by the browser + hls.js, try native support
+                console.log('Using native HLS support');
+                videoElement.src = source.src;
+            }
+            
+            // Return the player instance
+            return player;
+        }
+        
+        // Find all video elements and initialize Plyr
+        const videoElements = document.querySelectorAll('.plyr-video');
+        const players = Array.from(videoElements).map(video => initPlyr(video));
+        
+        // Event listeners for the first player (if available)
+        if (players.length > 0) {
+            const player = players[0];
+            
+            player.on('ready', (event) => {
+                console.log('Video player is ready');
+            });
+            
+            player.on('play', (event) => {
+                console.log('Video started playing');
+            });
+            
+            player.on('pause', (event) => {
+                console.log('Video paused');
+            });
+            
+            player.on('ended', (event) => {
+                console.log('Video playback completed');
+            });
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

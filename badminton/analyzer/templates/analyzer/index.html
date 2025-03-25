@@ -1,0 +1,105 @@
+{% extends 'analyzer/base.html' %}
+
+{% block title %}Home - Smart Badminton Coach{% endblock %}
+
+{% block content %}
+<div class="text-center mb-5">
+    <h1 class="display-4 mb-3">🏸 Smart Badminton Form Analyzer</h1>
+    <p class="lead">
+        Use AI-powered pose estimation to analyze and improve your badminton techniques
+    </p>
+    <div class="mt-4">
+        <a href="{% url 'analyzer:upload_video' %}" class="btn btn-primary btn-lg">
+            <i class="fas fa-upload me-2"></i> Upload Video
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">How It Works</h5>
+            </div>
+            <div class="card-body">
+                <ol class="mb-0">
+                    <li class="mb-2">Upload a video of your badminton play</li>
+                    <li class="mb-2">Select the shot type you want to analyze (Smash, Clear, Drop Shot)</li>
+                    <li class="mb-2">Adjust processing options if needed</li>
+                    <li class="mb-2">Our AI analyzes your form using pose estimation</li>
+                    <li>Get detailed feedback on your technique with key frame analysis</li>
+                </ol>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Supported Shot Types</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="h5">Smash</div>
+                        <p class="small text-muted">Powerful overhead shot</p>
+                    </div>
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="h5">Clear</div>
+                        <p class="small text-muted">High defensive shot</p>
+                    </div>
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="h5">Drop Shot</div>
+                        <p class="small text-muted">Soft deceptive shot</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Recent Analyses</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_analyses %}
+                    <div class="list-group">
+                        {% for analysis in recent_analyses %}
+                            <a href="{% url 'analyzer:analysis_detail' analysis.id %}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ analysis.title|default:"Analysis" }} #{{ analysis.id }}</h6>
+                                    <small class="text-muted">{{ analysis.created_at|date:"M d, Y" }}</small>
+                                </div>
+                                <p class="mb-1">Shot Type: {{ analysis.get_shot_type_display }}</p>
+                            </a>
+                        {% endfor %}
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'analyzer:analysis_history' %}" class="btn btn-outline-primary btn-sm">
+                            View All Analyses
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-0">No analyses yet. Upload a video to get started!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Tips for Best Results</h5>
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    <li class="mb-2">Record from a side angle to capture form clearly</li>
+                    <li class="mb-2">Ensure good lighting for better analysis</li>
+                    <li class="mb-2">Keep the player centered in the frame</li>
+                    <li class="mb-2">If possible, use slow-motion footage for more detailed analysis</li>
+                    <li>For long videos, use higher frame skip values to speed up processing</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
