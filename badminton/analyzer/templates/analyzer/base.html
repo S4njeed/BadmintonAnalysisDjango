@@ -11,12 +11,18 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
+    <!-- Google Fonts - Short Stack -->
+    <link href="https://fonts.googleapis.com/css2?family=Short+Stack&display=swap" rel="stylesheet">
+    
     <style>
         body {
             padding-top: 56px;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            background-color: #9D585C;
+            color: #FFFFFF;
+            font-family: 'Short Stack', cursive;
         }
         
         .content {
@@ -27,16 +33,19 @@
         .footer {
             margin-top: auto;
             padding: 1rem 0;
-            background-color: #f8f9fa;
+            background-color: #9D585C;
+            color: #000000;
         }
         
         .navbar-brand {
             font-weight: bold;
+            color: #000000 !important;
         }
         
         .card {
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
+            background-color: #FCFFEF;
         }
         
         .card:hover {
@@ -62,7 +71,7 @@
         }
         
         .analysis-heading {
-            color: #007bff;
+            color: #000000;
             margin-top: 2rem;
             margin-bottom: 1rem;
         }
@@ -75,6 +84,101 @@
         
         .progress-bar-animated {
             animation: progress-bar-stripes 1s linear infinite;
+        }
+
+        /* Button styling */
+        .btn-primary {
+            background-color: #44655F;
+            border-color: #44655F;
+        }
+
+        .btn-primary:hover {
+            background-color: #3a544f;
+            border-color: #3a544f;
+        }
+
+        .btn-outline-primary {
+            color: #44655F;
+            border-color: #44655F;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: #44655F;
+            border-color: #44655F;
+        }
+
+        /* Navbar styling */
+        .navbar {
+            background-color: #000000 !important;
+        }
+
+        .nav-link {
+            color: #FCFFEF !important;
+        }
+
+        .nav-link:hover {
+            color: #9D585C !important;
+        }
+
+        .nav-link.active {
+            color: #9D585C !important;
+        }
+
+        .navbar-brand {
+            font-weight: bold;
+            color: #FCFFEF !important;
+        }
+
+        .navbar-toggler {
+            border-color: #FCFFEF;
+        }
+
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%23FCFFEF' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        }
+
+        /* Card header styling */
+        .card-header {
+            background-color: #44655F !important;
+            color: #FCFFEF !important;
+        }
+
+        /* Form styling */
+        .form-control {
+            background-color: #FCFFEF;
+            border-color: #44655F;
+            color: #000000;
+        }
+
+        .form-control:focus {
+            background-color: #FCFFEF;
+            border-color: #44655F;
+            color: #000000;
+        }
+
+        /* List group styling */
+        .list-group-item {
+            background-color: #FCFFEF;
+            border-color: #44655F;
+            color: #000000;
+        }
+
+        .list-group-item:hover {
+            background-color: #f0f3e6;
+        }
+
+        /* Table styling */
+        .table {
+            color: #000000;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: #f0f3e6;
+        }
+
+        /* Badge styling */
+        .badge {
+            background-color: #44655F;
         }
     </style>
     
