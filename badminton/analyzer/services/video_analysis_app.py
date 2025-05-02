@@ -3,18 +3,16 @@ VideoAnalysisApp - Adapted for Django integration with AV1 codec support.
 Handles video processing and badminton technique analysis.
 """
 
-import cv2
-import time
-import os
 import json
-import numpy as np
+import os
 import subprocess
-import tempfile
-import shutil
+import time
+import cv2
+import numpy as np
+
 from typing import Dict, Optional, Any, Tuple
 from django.conf import settings
 from django.core.files.base import ContentFile
-
 from .badminton_pose_estimator import BadmintonVideoTracker
 
 
@@ -29,6 +27,8 @@ class DjangoVideoAnalysisApp:
             analysis_model: Django model instance representing the analysis
         """
         # Django model for this analysis
+        self.last_processed_frame = None
+        self.last_analysis = None
         self.analysis_model = analysis_model
         
         # Core components
@@ -169,8 +169,9 @@ class DjangoVideoAnalysisApp:
         except Exception as e:
             print(f"Frame processing error: {str(e)}")
             return frame, None
-    
-    def prepare_empty_frame(self) -> np.ndarray:
+
+    @staticmethod
+    def prepare_empty_frame() -> np.ndarray:
         """Create an empty frame with awaiting detection message."""
         empty_frame = np.zeros((300, 400, 3), dtype=np.uint8)
         empty_frame.fill(25)  # Dark gray
@@ -194,12 +195,13 @@ class DjangoVideoAnalysisApp:
         )
         
         return empty_frame
-    
-    def generate_frame_report(self, analysis: Optional[Dict]) -> str:
+
+    @staticmethod
+    def generate_frame_report(analysis: Optional[Dict]) -> str:
         """Generate analysis report for the current frame"""
         if not analysis:
             return "No pose detected in this frame"
-        
+
         return (
             f"🏸 Frame Analysis @ {analysis['timestamp']:.2f}s\n"
             f"Phase: {analysis['shot_phase'] or 'Preparing'}\n"
@@ -207,7 +209,7 @@ class DjangoVideoAnalysisApp:
             f"Shoulder Angle: {analysis['shoulder_angle']:.1f}°\n"
             f"Form: {'✅ Within Threshold' if analysis['within_threshold'] else '❌ Needs Improvement'}"
         )
-    
+
     def generate_summary_report(self) -> str:
         """Generate end-of-analysis summary report with timing details"""
         if not self.analysis_summary:
@@ -264,196 +266,6 @@ class DjangoVideoAnalysisApp:
                 results[phase] = False
         
         return results
-
-    def create_hls_encoder(self, output_path, fps, frame_size):
-        """
-        Create an HLS encoder using FFmpeg.
-        
-        Args:
-            output_path: Path to save the output video
-            fps: Frames per second
-            frame_size: Tuple of (width, height)
-        
-        Returns:
-            Tuple of (temp_dir, frames_dir, is_available)
-        """
-        try:
-            # Check if FFmpeg is installed
-            try:
-                subprocess.run(['ffmpeg', '-version'],
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE,
-                              check=True)
-                hls_available = True
-                print("FFmpeg found and will be used for HLS encoding")
-            except (subprocess.SubprocessError, FileNotFoundError):
-                print("FFmpeg not found. Will fall back to OpenCV codecs.")
-                return None, None, False
-            
-            # Create a temporary directory for frame extraction
-            temp_dir = tempfile.mkdtemp(prefix="hls_encoding_")
-            
-            # Create a path for storing individual frames
-            frames_dir = os.path.join(temp_dir, "frames")
-            os.makedirs(frames_dir, exist_ok=True)
-            
-            # Store parameters for later use
-            self._hls_frame_size = frame_size
-            self._hls_fps = fps
-            self._hls_frames_dir = frames_dir
-            self._hls_frame_count = 0
-            
-            return temp_dir, frames_dir, True
-        
-        except Exception as e:
-            print(f"Error initializing HLS encoder: {str(e)}")
-            return None, None, False
-
-    def save_frame_for_hls(self, frame, frame_dir, frame_index):
-        """
-        Save a single frame for later HLS encoding.
-        
-        Args:
-            frame: NumPy array frame data
-            frame_dir: Directory to save frames
-            frame_index: Frame sequence number
-            
-        Returns:
-            bool: True if saving was successful
-        """
-        try:
-            # Format frame number with leading zeros
-            frame_filename = os.path.join(frame_dir, f"frame_{frame_index:06d}.png")
-            
-            # Save using OpenCV's imwrite
-            cv2.imwrite(frame_filename, frame)
-            
-            return True
-        except Exception as e:
-            print(f"Error saving frame for HLS: {str(e)}")
-            return False
-
-    def finalize_hls_encoding(self, temp_dir, frames_dir, output_path, frame_size, fps):
-        """
-        Perform the actual HLS encoding using FFmpeg.
-        
-        Args:
-            temp_dir: Temporary directory
-            frames_dir: Directory containing saved frames
-            output_path: Base output path for the encoded video
-            frame_size: Tuple of (width, height)
-            fps: Frames per second
-        
-        Returns:
-            bool: True if encoding was successful
-        """
-        try:
-            width, height = frame_size
-            frames_pattern = os.path.join(frames_dir, "frame_%06d.png")
-            
-            # Create HLS output directory
-            hls_output_dir = os.path.join(settings.MEDIA_ROOT, 'hls')
-            os.makedirs(hls_output_dir, exist_ok=True)
-            
-            # Get a unique identifier for this analysis stream
-            analysis_id = "default"
-            if self.analysis_model and self.analysis_model.id:
-                analysis_id = str(self.analysis_model.id)
-            
-            # Create a unique directory for this analysis stream
-            stream_dir = os.path.join(hls_output_dir, f"analysis_{analysis_id}")
-            os.makedirs(stream_dir, exist_ok=True)
-            
-            # Define HLS output path
-            hls_playlist = os.path.join(stream_dir, "playlist.m3u8")
-            self.hls_playlist_path = hls_playlist
-            
-            # Store the relative path for Django reference
-            rel_path = os.path.relpath(hls_playlist, settings.MEDIA_ROOT)
-            # We need to store this path for later retrieval
-            self.hls_relative_path = rel_path
-            
-            # Build the FFmpeg command for HLS encoding
-            hls_cmd = [
-                'ffmpeg',
-                '-y',  # Overwrite output files without asking
-                '-framerate', str(fps),
-                '-i', frames_pattern,
-                '-c:v', 'libx264',  # H.264 codec for broader compatibility
-                '-crf', '23',  # Constant Rate Factor (quality level - lower is better)
-                '-preset', 'medium',  # Encoding speed/compression ratio
-                '-profile:v', 'high444',  # H.264 profile that supports 4:4:4 color
-                '-level', '4.0',  # H.264 level (increased for better compatibility)
-                '-pix_fmt', 'yuv420p',  # Convert to a widely supported pixel format
-                '-sc_threshold', '0',  # Disable scene change detection
-                '-g', str(int(fps) * 2),  # GOP size (2 seconds)
-                '-keyint_min', str(int(fps)),  # Minimum GOP size (1 second)
-                '-hls_time', '4',  # Segment duration in seconds
-                '-hls_playlist_type', 'vod',  # Video on demand playlist
-                '-hls_segment_filename', os.path.join(stream_dir, "segment_%03d.ts"),
-                '-hls_list_size', '0',  # Keep all segments in the playlist
-                hls_playlist
-            ]
-            
-            # Execute FFmpeg encoding
-            self._status_message = "Performing HLS encoding..."
-            print(f"Running HLS encoding with command: {' '.join(hls_cmd)}")
-            
-            result = subprocess.run(
-                hls_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                check=True
-            )
-            
-            print("HLS encoding completed successfully")
-            
-            # Also create a direct MP4 file for download purposes
-            mp4_output = output_path  # This will be the normal .mp4 file path
-            
-            mp4_cmd = [
-                'ffmpeg',
-                '-y',
-                '-framerate', str(fps),
-                '-i', frames_pattern,
-                '-c:v', 'libx264',
-                '-crf', '23',
-                '-preset', 'medium',
-                '-profile:v', 'high444',
-                '-level', '4.0',
-                '-pix_fmt', 'yuv420p',
-                mp4_output
-            ]
-            
-            print(f"Creating MP4 file for download with command: {' '.join(mp4_cmd)}")
-            
-            mp4_result = subprocess.run(
-                mp4_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                check=True
-            )
-            
-            print("MP4 creation completed successfully")
-            
-            return True
-        
-        except subprocess.CalledProcessError as e:
-            print(f"HLS encoding failed: {e}")
-            print(f"Error output: {e.stderr.decode()}")
-            return False
-        
-        except Exception as e:
-            print(f"Error during HLS encoding: {str(e)}")
-            return False
-        
-        finally:
-            # Clean up temporary directory
-            try:
-                shutil.rmtree(temp_dir)
-                print(f"Cleaned up temporary directory: {temp_dir}")
-            except Exception as cleanup_error:
-                print(f"Error cleaning up temporary files: {str(cleanup_error)}")
     
     def analyze_video(self) -> Dict[str, Any]:
         """
@@ -510,8 +322,7 @@ class DjangoVideoAnalysisApp:
         if fps <= 0:  # Fallback if invalid
             fps = 30
             print("Warning: Invalid FPS detected, using 30 FPS as default")
-        
-        frame_size = (int(cap.get(3)), int(cap.get(4)))
+
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         
         # Prepare output directory and video writer
@@ -525,36 +336,6 @@ class DjangoVideoAnalysisApp:
         
         # Update status message
         self._status_message = f"Processing video ({total_frames} frames) at {fps:.1f} FPS, analyzing every {self._process_interval} frame"
-        
-        # Try to setup HLS encoder
-        temp_dir, frames_dir, using_hls = self.create_hls_encoder(
-            self.output_video_path,
-            fps,
-            frame_size
-        )
-        
-        # If HLS setup fails, fall back to H.264 with OpenCV
-        writer = None
-        
-        if not using_hls:
-            print("Not using HLS, falling back to H.264 with OpenCV")
-            # Use H.264 as only fallback - simpler than before
-            try:
-                fourcc = cv2.VideoWriter_fourcc(*'avc1')  # H.264 codec
-                writer = cv2.VideoWriter(
-                    self.output_video_path,
-                    fourcc,
-                    fps,
-                    frame_size
-                )
-                
-                if not writer.isOpened():
-                    raise Exception("Failed to initialize H.264 writer")
-                
-                print("Successfully opened H.264 writer")
-            except Exception as e:
-                print(f"H.264 setup failed: {str(e)}")
-                raise Exception("Failed to initialize any video writer")
         
         self._start_time = time.time()
         
@@ -581,7 +362,39 @@ class DjangoVideoAnalysisApp:
             self._progress = 20  # Reading complete - 20%
             
             # Process frames with selective processing
-            self._hls_frame_count = 0  # Initialize frame counter for HLS
+            
+            # Prepare for MP4 encoding using FFmpeg
+            mp4_output = self.output_video_path
+            
+            # Build the FFmpeg command for MP4 encoding
+            mp4_cmd = [
+                'ffmpeg',
+                '-y',  # Overwrite output files without asking
+                '-f', 'image2pipe',  # Input format is image pipe
+                '-vcodec', 'png',  # Input codec is PNG (from OpenCV imencode)
+                '-r', str(fps),  # Input frame rate
+                '-i', '-',  # Input from stdin
+                '-c:v', 'libx264',  # H.264 codec
+                '-crf', '23',  # Constant Rate Factor (quality level - lower is better)
+                '-preset', 'medium',  # Encoding speed/compression ratio
+                '-profile:v', 'high444',  # H.264 profile that supports 4:4:4 color
+                '-level', '4.0',  # H.264 level (increased for better compatibility)
+                '-pix_fmt', 'yuv420p',  # Convert to a widely supported pixel format
+                mp4_output
+            ]
+            
+            # Start FFmpeg process
+            self._status_message = "Starting MP4 encoding..."
+            print(f"Running MP4 encoding with command: {' '.join(mp4_cmd)}")
+            
+            ffmpeg_process = subprocess.Popen(
+                mp4_cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            
+            print("Successfully started FFmpeg process for MP4 encoding")
             
             for i, frame in enumerate(all_frames):
                 # Check if stop was requested
@@ -595,7 +408,6 @@ class DjangoVideoAnalysisApp:
                 if i % 10 == 0:
                     # Scale from 20% to 90% for processing
                     self._progress = 20 + int((i / total_frames) * 70)
-                    remaining = total_frames - i
                     self._status_message = f"Processing frame {i}/{total_frames} ({self._progress}% complete)"
                 
                 # Determine if this frame should be processed
@@ -608,7 +420,7 @@ class DjangoVideoAnalysisApp:
                         self.follow_through_frame is None
                 )
                 
-                # Process frame if it's on the interval or we're still looking for key frames
+                # Process frame if it's on the interval, or we're still looking for key frames
                 if self._frame_count % self._process_interval == 0 or missing_key_frames:
                     should_process = True
                 
@@ -618,22 +430,25 @@ class DjangoVideoAnalysisApp:
                     processed_frame, analysis = self.process_frame(frame, current_time)
                     
                     if processed_frame is not None:
-                        if using_hls:
-                            # Save frames for HLS encoding
-                            self.save_frame_for_hls(processed_frame, frames_dir, self._hls_frame_count)
-                            self._hls_frame_count += 1
+                        # Write processed frame to FFmpeg stdin
+                        success, buffer = cv2.imencode('.png', processed_frame)
+                        if success:
+                            ffmpeg_process.stdin.write(buffer.tobytes())
                         else:
-                            # Write to OpenCV writer
-                            writer.write(processed_frame)
+                            print(f"Warning: Failed to encode processed frame {i} for FFmpeg")
+                            # Fallback to writing original frame if encoding fails
+                            success, buffer = cv2.imencode('.png', frame)
+                            if success:
+                                ffmpeg_process.stdin.write(buffer.tobytes())
+                            else:
+                                print(f"Error: Failed to encode original frame {i} for FFmpeg")
                 else:
-                    # Write unprocessed frame
-                    if using_hls:
-                        # Save unprocessed frame for HLS encoding
-                        self.save_frame_for_hls(frame, frames_dir, self._hls_frame_count)
-                        self._hls_frame_count += 1
+                    # Write unprocessed frame to FFmpeg stdin
+                    success, buffer = cv2.imencode('.png', frame)
+                    if success:
+                        ffmpeg_process.stdin.write(buffer.tobytes())
                     else:
-                        # Write to OpenCV writer
-                        writer.write(frame)
+                        print(f"Error: Failed to encode unprocessed frame {i} for FFmpeg")
                 
                 # Break early if we have all key frames to save processing time
                 if (self.pre_hit_frame is not None and
@@ -643,34 +458,25 @@ class DjangoVideoAnalysisApp:
                     
                     # Write remaining frames to the output
                     for remaining_frame in all_frames[i + 1:]:
-                        if using_hls:
-                            # Save frames for HLS encoding
-                            self.save_frame_for_hls(remaining_frame, frames_dir, self._hls_frame_count)
-                            self._hls_frame_count += 1
+                        success, buffer = cv2.imencode('.png', remaining_frame)
+                        if success:
+                            ffmpeg_process.stdin.write(buffer.tobytes())
                         else:
-                            # Write to OpenCV writer
-                            writer.write(remaining_frame)
+                            print(f"Error: Failed to encode remaining frame for FFmpeg")
                     break
             
-            # Finalize video writing
-            if using_hls:
-                # Perform HLS encoding on collected frames
-                self._status_message = "Performing HLS encoding..."
-                success = self.finalize_hls_encoding(
-                    temp_dir,
-                    frames_dir,
-                    self.output_video_path,
-                    self._hls_frame_size,
-                    self._hls_fps
-                )
-                
-                if not success:
-                    # If HLS encoding failed, we need to abort
-                    raise Exception("HLS encoding failed, unable to produce output video")
-            else:
-                # Release OpenCV writer
-                if writer:
-                    writer.release()
+            # Close FFmpeg stdin to signal end of input
+            ffmpeg_process.stdin.close()
+            
+            # Wait for FFmpeg process to finish
+            stdout, stderr = ffmpeg_process.communicate()
+            
+            if ffmpeg_process.returncode != 0:
+                print(f"FFmpeg encoding failed with error code {ffmpeg_process.returncode}")
+                print(f"FFmpeg stderr:\n{stderr.decode()}")
+                raise Exception("MP4 encoding failed")
+            
+            print("MP4 encoding completed successfully")
             
             # Generate final summary
             self._status_message = "Finalizing analysis..."
@@ -709,10 +515,6 @@ class DjangoVideoAnalysisApp:
                         os.path.basename(self.output_video_path),
                         ContentFile(file_content)
                     )
-            
-            # Save HLS path to model if HLS was used
-            if using_hls and self.analysis_model and hasattr(self, 'hls_relative_path'):
-                self.analysis_model.hls_path = self.hls_relative_path
             
             # Save summary to model - summary is now JSON serializable
             if self.analysis_model:
@@ -753,8 +555,7 @@ class DjangoVideoAnalysisApp:
         finally:
             # Always ensure resources are released
             cap.release()
-            if not using_hls and writer:
-                writer.release()
+            # No OpenCV writer when using FFmpeg pipe
             self.cleanup()
             self._is_analyzing = False
     

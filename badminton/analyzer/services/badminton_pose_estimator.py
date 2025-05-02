@@ -3,14 +3,16 @@ BadmintonPoseEstimator - Core functionality for badminton pose analysis.
 Adapted for Django integration from the original implementation.
 """
 
+import math
+import os
+from dataclasses import dataclass
+from typing import Dict, Optional, Tuple, List
+
 import cv2
 import numpy as np
 import torch
-from ultralytics import YOLO
-from dataclasses import dataclass
-from typing import Dict, Optional, Tuple, List, Any
-import os
 from django.conf import settings
+from ultralytics import YOLO
 
 
 @dataclass
@@ -56,9 +58,6 @@ def is_within_threshold(grip_angle: float, shoulder_angle: float, threshold: Dic
 
 def draw_skeleton(frame: np.ndarray, keypoints: np.ndarray, connections: List[Tuple[int, int]],
                   color: Tuple[int, int, int]) -> None:
-    # Draw skeletal connections on frame - optimized for valid points only
-    valid_points = keypoints[:, 2] > 0.5  # Only draw points above confidence threshold
-
     for start_idx, end_idx in connections:
         if keypoints[start_idx, 2] > 0.5 and keypoints[end_idx, 2] > 0.5:
             try:
@@ -67,7 +66,7 @@ def draw_skeleton(frame: np.ndarray, keypoints: np.ndarray, connections: List[Tu
                 cv2.line(frame, start, end, color, 2)
                 cv2.circle(frame, start, 4, (0, 0, 255), -1)
                 cv2.circle(frame, end, 4, (0, 0, 255), -1)
-            except (IndexError, ValueError) as e:
+            except (IndexError, ValueError):
                 continue
 
 
@@ -168,14 +167,14 @@ class BadmintonVideoTracker:
         # Modified for Django: Get model paths from settings or use default
         models_dir = getattr(settings, 'YOLO_MODELS_DIR', os.path.join(settings.MEDIA_ROOT, 'models'))
         os.makedirs(models_dir, exist_ok=True)
-        
+       
         pose_model_path = os.path.join(models_dir, f'yolo11{model_size}-pose.pt')
         shuttle_model_path = os.path.join(models_dir, 'shuttlecock.pt')
-        
+       
         # Check if models exist, if not, use default paths
         if not os.path.exists(pose_model_path):
             pose_model_path = f'yolo11{model_size}-pose.pt'
-        
+       
         if not os.path.exists(shuttle_model_path):
             shuttle_model_path = 'shuttlecock.pt'
 
@@ -221,6 +220,15 @@ class BadmintonVideoTracker:
         self.prev_shuttle_box: Optional[np.ndarray] = None
         self.prev_time: Optional[float] = None
         self.last_analysis: Optional[FrameAnalysis] = None
+        
+        # New: Track the minimum distance between wrist and shuttlecock
+        self.min_shuttle_distance = float('inf')
+        self.min_distance_frame = None
+        
+        # New: Track sequence of phases for proper detection order
+        self.sequence_state = 'initial'  # Can be 'initial', 'pre_hit', 'looking_for_hit', 'looking_for_follow'
+        self.found_hit = False
+        self.awaiting_follow_through = False
 
     def detect_shuttlecock(self, frame: np.ndarray) -> Optional[np.ndarray]:
         # Consider only the top half of the frame for shuttlecock detection
@@ -394,7 +402,19 @@ class BadmintonVideoTracker:
         # Calculate angles and shot phase
         grip_angle = self.calculate_grip_angle(keypoints)
         shoulder_angle = self.calculate_shoulder_angle(keypoints)
-        shot_phase = self.determine_shot_phase(
+        
+        # Track the minimum distance between wrist and shuttlecock (for hit detection)
+        if current_distance < self.min_shuttle_distance and shuttle_box is not None:
+            self.min_shuttle_distance = current_distance
+            self.min_distance_frame = {
+                'frame': frame.copy(),
+                'keypoints': keypoints.copy(),
+                'timestamp': timestamp,
+                'shuttle_box': shuttle_box.copy() if shuttle_box is not None else None
+            }
+            
+        # Determine phase based on improved sequence logic
+        shot_phase = self.determine_shot_phase_improved(
             current_distance,
             grip_angle,
             shoulder_angle
@@ -417,31 +437,89 @@ class BadmintonVideoTracker:
         # Save last analysis for potential frame skipping
         self.last_analysis = analysis
 
-        # Update key frames based on current detections
+        # Update key frames based on current detections (with improved logic)
         self.update_key_frames_from_detections()
 
         return self.visualize_analysis(frame, analysis, shuttle_box), analysis.__dict__
 
-    def determine_shot_phase(self, current_distance: float, grip_angle: float,
-                             shoulder_angle: float) -> Optional[str]:
-        # Determine current phase of the shot using cached thresholds
+    def determine_shot_phase_improved(self, current_distance: float, grip_angle: float,
+                               shoulder_angle: float) -> Optional[str]:
+        """
+        Improved phase detection with proper sequence handling:
+        1. First detect pre-hit phase
+        2. After pre-hit, look for the moment when wrist is closest to shuttlecock for hit detection
+        3. After hit, look for follow-through
+        4. If follow-through is detected before hit, continue detection
+        """
         thresholds = self._thresholds_cache
-
+        
         if not thresholds:
             print(f"Invalid shot type: {self.target_shot_type}")
             return None
-
-        # Check for hit moment
-        if current_distance < self.last_shuttle_distance:
-            if is_within_threshold(grip_angle, shoulder_angle, thresholds['hit']):
+            
+        # Check thresholds for different phases
+        in_pre_hit = is_within_threshold(grip_angle, shoulder_angle, thresholds['pre_hit'])
+        in_hit = is_within_threshold(grip_angle, shoulder_angle, thresholds['hit'])
+        in_follow = is_within_threshold(grip_angle, shoulder_angle, thresholds['follow_through'])
+        
+        # State machine to handle sequence detection
+        if self.sequence_state == 'initial':
+            if in_pre_hit:
+                self.sequence_state = 'pre_hit'
+                return 'pre_hit'
+                
+        elif self.sequence_state == 'pre_hit':
+            if in_pre_hit:
+                return 'pre_hit'
+            elif in_hit:
+                self.sequence_state = 'looking_for_hit'
+                self.found_hit = True
+                # Reset min distance for new hit detection
+                self.min_shuttle_distance = current_distance
+                self.min_distance_frame = None
                 return 'hit'
-
-        # Check other phases
-        for phase in ['pre_hit', 'follow_through']:
-            if is_within_threshold(grip_angle, shoulder_angle, thresholds[phase]):
-                return phase
-
+            elif in_follow:
+                # If we detect follow-through but missed hit, keep looking
+                self.sequence_state = 'looking_for_hit'
+                self.awaiting_follow_through = True
+                return 'pre_hit'  # Continue showing as pre-hit
+                
+        elif self.sequence_state == 'looking_for_hit':
+            if not self.found_hit and in_hit:
+                self.found_hit = True
+                return 'hit'
+            elif in_follow and (self.found_hit or self.awaiting_follow_through):
+                # Proper sequence: we've seen a hit and now follow-through
+                self.sequence_state = 'looking_for_follow'
+                self.awaiting_follow_through = False
+                return 'follow_through'
+            elif self.found_hit:
+                return 'hit'
+            else:
+                return 'pre_hit'  # We're still in the hunting phase
+                
+        elif self.sequence_state == 'looking_for_follow':
+            if in_follow:
+                return 'follow_through'
+            elif in_pre_hit:
+                # New shot sequence starting
+                self.reset_detection_state()
+                self.sequence_state = 'pre_hit'
+                return 'pre_hit'
+        
+        # Default return, maintain previous state
         return None
+
+    def reset_detection_state(self):
+        """Reset detection state for a new shot"""
+        self.sequence_state = 'initial'
+        self.found_hit = False
+        self.awaiting_follow_through = False
+        self.min_shuttle_distance = float('inf')
+        self.min_distance_frame = None
+        # Clear phase detections
+        for phase in self.phase_detections:
+            self.phase_detections[phase] = []
 
     def update_tracking_state(self, frame: np.ndarray, keypoints: np.ndarray, phase: Optional[str], timestamp: float,
                               current_distance: float) -> None:
@@ -451,8 +529,10 @@ class BadmintonVideoTracker:
             self.phase_detections[phase].append({
                 'frame': frame.copy(),
                 'keypoints': keypoints,
-                'timestamp': timestamp
+                'timestamp': timestamp,
+                'distance': current_distance
             })
+            
         self.last_shuttle_distance = current_distance
         self.prev_keypoints = keypoints
         self.prev_time = timestamp
@@ -466,9 +546,19 @@ class BadmintonVideoTracker:
         elif len(self.phase_detections['pre_hit']) == 1:
             self.key_frames['pre_hit'] = self.phase_detections['pre_hit'][0]
 
-        # Hit: Get the last frame
-        if len(self.phase_detections['hit']) > 0:
-            self.key_frames['hit'] = self.phase_detections['hit'][-1]
+        # Hit: Use the frame with minimum distance between wrist and shuttlecock
+        if self.min_distance_frame is not None:
+            self.key_frames['hit'] = self.min_distance_frame
+        elif len(self.phase_detections['hit']) > 0:
+            # Fall back to the stored hit frames if no minimum distance found
+            # Find the frame with minimum distance in hit phase detections
+            min_dist_idx = 0
+            min_dist = float('inf')
+            for i, detection in enumerate(self.phase_detections['hit']):
+                if detection.get('distance', float('inf')) < min_dist:
+                    min_dist = detection['distance']
+                    min_dist_idx = i
+            self.key_frames['hit'] = self.phase_detections['hit'][min_dist_idx]
 
         # Follow-through: Get the last frame
         if len(self.phase_detections['follow_through']) > 0:
@@ -493,6 +583,34 @@ class BadmintonVideoTracker:
         draw_skeleton(viz_frame, keypoints, connections, current_color)
         draw_shuttlecock(viz_frame, shuttle_box)
         draw_info_overlay(viz_frame, analysis)
+        
+        # Additional info for wrist-shuttlecock distance
+        if shuttle_box is not None:
+            wrist_point = keypoints[self.KEYPOINTS['RIGHT_WRIST'], :2]
+            current_distance = calculate_shuttle_distance(shuttle_box, wrist_point)
+            dist_text = f"Wrist-Shuttle Dist: {current_distance:.1f}px"
+            cv2.putText(
+                viz_frame,
+                dist_text,
+                (10, viz_frame.shape[0] - 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (255, 255, 255),
+                2
+            )
+            
+            # Draw a line between wrist and shuttlecock center
+            shuttle_center = np.array([
+                (shuttle_box[0] + shuttle_box[2]) / 2,
+                (shuttle_box[1] + shuttle_box[3]) / 2
+            ])
+            cv2.line(
+                viz_frame,
+                tuple(map(int, wrist_point)),
+                tuple(map(int, shuttle_center)),
+                (0, 165, 255),  # Orange line
+                1
+            )
 
         return viz_frame
 
@@ -505,20 +623,70 @@ class BadmintonVideoTracker:
             }
 
         try:
+            serializable_key_frames = {}
+            for phase, data in self.key_frames.items():
+                if data: # Check if data exists for the phase
+                    serializable_data = {}
+                    
+                    # Handle timestamp (should be JSON-safe, but check for None)
+                    timestamp = data.get('timestamp')
+                    serializable_data['timestamp'] = timestamp if timestamp is not None else None
+
+                    # Convert keypoints ndarray to list
+                    keypoints_array = data.get('keypoints')
+                    if isinstance(keypoints_array, np.ndarray):
+                        serializable_data['keypoints'] = keypoints_array.tolist()
+                    else:
+                         serializable_data['keypoints'] = keypoints_array
+
+                    # Convert shuttle_box ndarray to list if it exists
+                    shuttle_box_array = data.get('shuttle_box')
+                    if isinstance(shuttle_box_array, np.ndarray):
+                        serializable_data['shuttle_box'] = shuttle_box_array.tolist()
+                    else:
+                        serializable_data['shuttle_box'] = shuttle_box_array
+
+                    # Handle distance: Replace inf/nan with None
+                    distance = data.get('distance')
+                    if isinstance(distance, (int, float)) and not math.isnan(distance) and not math.isinf(distance):
+                         serializable_data['distance'] = distance
+                    else:
+                         # Replace problematic values (inf, nan, potentially others) with None
+                         serializable_data['distance'] = None
+
+                    # Exclude raw 'frame' data
+                    serializable_key_frames[phase] = serializable_data
+                else:
+                    serializable_key_frames[phase] = None
+
+            # Calculate timing, ensuring timestamps are valid numbers
+            pre_hit_ts = serializable_key_frames.get('pre_hit', {}).get('timestamp')
+            hit_ts = serializable_key_frames.get('hit', {}).get('timestamp')
+            follow_through_ts = serializable_key_frames.get('follow_through', {}).get('timestamp')
+
+            timing_data = {}
+            try: # Add specific error handling for timing calculation
+                if hit_ts is not None and pre_hit_ts is not None:
+                    timing_data['preparation_time'] = float(hit_ts) - float(pre_hit_ts) # Cast to float just in case
+                if follow_through_ts is not None and hit_ts is not None:
+                    timing_data['follow_through_time'] = float(follow_through_ts) - float(hit_ts)
+            except Exception as timing_e:
+                 print(f"Error calculating timing: {timing_e}")
+                 # Decide how to handle timing errors, e.g., return empty or specific error message
+
             return {
                 'status': 'complete',
                 'shot_type': self.target_shot_type,
-                'key_frames': self.key_frames,
-                'timing': {
-                    'preparation_time':
-                        self.key_frames['hit']['timestamp'] - self.key_frames['pre_hit']['timestamp'],
-                    'follow_through_time':
-                        self.key_frames['follow_through']['timestamp'] - self.key_frames['hit']['timestamp']
-                }
+                'key_frames': serializable_key_frames,
+                'timing': timing_data
             }
-        except KeyError as e:
-            print(f"Key frame data error: {str(e)}")
+        except Exception as e: # General catch-all for unexpected errors during processing
+            print(f"Error generating technique summary: {str(e)}")
+            # Log the original key_frames for deeper debugging if needed
+            # import traceback
+            # print(traceback.format_exc())
+            # print(f"Problematic key_frames data: {self.key_frames}")
             return {
                 'status': 'error',
-                'message': 'Invalid key frame data'
+                'message': f'Failed to generate serializable summary: {str(e)}'
             }

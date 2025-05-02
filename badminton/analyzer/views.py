@@ -3,20 +3,20 @@ Views for the Analyzer app - handles HTTP requests and renders responses.
 """
 
 import os
-import json
 import threading
-from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse, HttpResponse, Http404
-from django.urls import reverse
+
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import login  # Import login function
+from django.contrib.auth.decorators import login_required  # Import login_required
+from django.http import JsonResponse, HttpResponse, Http404
+from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
-from django.core.files.base import ContentFile
 
+from .forms import VideoUploadForm, SignUpForm  # Import SignUpForm
 from .models import VideoAnalysis
-from .forms import VideoUploadForm
 from .services.video_analysis_app import DjangoVideoAnalysisApp
-
 
 # Global dictionary to track running analysis tasks
 running_analyses = {}
@@ -31,13 +31,16 @@ def home(request):
     }
     return render(request, 'analyzer/index.html', context)
 
-
+@login_required # Require login for upload
 def upload_video(request):
     """Handle video upload and initial analysis configuration."""
     if request.method == 'POST':
         form = VideoUploadForm(request.POST, request.FILES)
         if form.is_valid():
-            analysis = form.save()
+            # Don't save immediately, set the user first
+            analysis = form.save(commit=False)
+            analysis.user = request.user # Associate the logged-in user
+            analysis.save() # Now save the instance
             return redirect('analyzer:analysis_detail', analysis_id=analysis.id)
     else:
         form = VideoUploadForm()
@@ -59,10 +62,11 @@ def analysis_detail(request, analysis_id):
     }
     return render(request, 'analyzer/analysis_detail.html', context)
 
-
+@login_required # Require login to view history
 def analysis_history(request):
     """Display user's analysis history."""
-    analyses = VideoAnalysis.objects.all().order_by('-created_at')
+    # Filter analyses by the currently logged-in user
+    analyses = VideoAnalysis.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'analyzer/history.html', {'analyses': analyses})
 
 
@@ -264,3 +268,39 @@ def download_analysis(request, analysis_id):
     response = HttpResponse(analysis.output_video.read(), content_type=content_type)
     response['Content-Disposition'] = f'attachment; filename="{file_name}"'
     return response
+
+
+@login_required
+def delete_analysis(request, analysis_id):
+    """Delete a specific analysis entry belonging to the user."""
+    # Ensure it's a POST request for safety
+    if request.method != 'POST':
+        messages.error(request, "Invalid request method.")
+        return redirect('analyzer:analysis_history')
+
+    # Get the analysis object, ensuring it belongs to the current user
+    analysis = get_object_or_404(VideoAnalysis, id=analysis_id, user=request.user)
+
+    try:
+        analysis_title = analysis.title or f"Analysis {analysis.id}"
+        analysis.delete()  # Delete the analysis object
+        messages.success(request, f'Successfully deleted "{analysis_title}".')
+    except Exception as e:
+        messages.error(request, f"Error deleting analysis: {str(e)}")
+
+    return redirect('analyzer:analysis_history')
+
+def signup(request):
+    """Handle user registration."""
+    if request.method == 'POST':
+        form = SignUpForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user) # Log the user in automatically after signup
+            messages.success(request, "Registration successful. You are now logged in.")
+            return redirect('analyzer:home') # Redirect to home page after signup
+        else:
+            messages.error(request, "Please correct the errors below.")
+    else:
+        form = SignUpForm()
+    return render(request, 'registration/signup.html', {'form': form})

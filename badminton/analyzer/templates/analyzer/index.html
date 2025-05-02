@@ -3,21 +3,24 @@
 {% block title %}Home - Smart Badminton Coach{% endblock %}
 
 {% block content %}
-<div class="text-center mb-5">
-    <h1 class="display-4 mb-3">🏸 Smart Badminton Form Analyzer</h1>
-    <p class="lead">
+<div class="text-center mb-3">
+    <h1 class="display-4 mb-3" style="font-weight: bold; background-color: rgba(157, 88, 92, 0.7); padding: 5px 10px; border-radius: 5px; display: inline-block;">🏸 KineticPoseAI Badminton Form Analyzer</h1>
+    <p class="lead" style="background-color: rgba(157, 88, 92, 0.7); padding: 5px 10px; border-radius: 5px; display: inline-block;">
         Use AI-powered pose estimation to analyze and improve your badminton techniques
     </p>
-    <div class="mt-4">
+    <div class="mt-2">
         <a href="{% url 'analyzer:upload_video' %}" class="btn btn-primary btn-lg">
             <i class="fas fa-upload me-2"></i> Upload Video
         </a>
+        <button type="button" class="btn btn-primary btn-lg ms-2" data-bs-toggle="modal" data-bs-target="#tutorialModal">
+            <i class="fas fa-question-circle me-2"></i> View Tutorial
+        </button>
     </div>
 </div>
 
 <div class="row">
     <div class="col-md-6">
-        <div class="card mb-4">
+        <div class="card mb-2">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">How It Works</h5>
             </div>
@@ -31,37 +34,32 @@
                 </ol>
             </div>
         </div>
-        
+
         <div class="card">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Supported Shot Types</h5>
+                <h5 class="mb-0">Tips for Best Results</h5>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4 text-center mb-3">
-                        <div class="h5">Smash</div>
-                        <p class="small text-muted">Powerful overhead shot</p>
-                    </div>
-                    <div class="col-md-4 text-center mb-3">
-                        <div class="h5">Clear</div>
-                        <p class="small text-muted">High defensive shot</p>
-                    </div>
-                    <div class="col-md-4 text-center mb-3">
-                        <div class="h5">Drop Shot</div>
-                        <p class="small text-muted">Soft deceptive shot</p>
-                    </div>
-                </div>
+                <ul class="mb-0">
+                    <li class="mb-2">Record from a side angle to capture form clearly</li>
+                    <li class="mb-2">Ensure good lighting for better analysis</li>
+                    <li class="mb-2">Keep the player centered in the frame</li>
+                    <li class="mb-2">If possible, use slow-motion footage for more detailed analysis</li>
+                    <li>For long videos, use higher frame skip values to speed up processing</li>
+                </ul>
             </div>
         </div>
+        
     </div>
     
     <div class="col-md-6">
-        <div class="card mb-4">
+        <div class="card mb-2">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">Recent Analyses</h5>
             </div>
             <div class="card-body">
                 {% if recent_analyses %}
+                    <a>Here are the three most recent analyses of the website.</a>
                     <div class="list-group">
                         {% for analysis in recent_analyses %}
                             <a href="{% url 'analyzer:analysis_detail' analysis.id %}" class="list-group-item list-group-item-action">
@@ -86,18 +84,163 @@
             </div>
         </div>
         
-        <div class="card">
+        
+        <div class="card mt-2">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Tips for Best Results</h5>
+                <h5 class="mb-0">Supported Shot Types</h5>
             </div>
             <div class="card-body">
-                <ul class="mb-0">
-                    <li class="mb-2">Record from a side angle to capture form clearly</li>
-                    <li class="mb-2">Ensure good lighting for better analysis</li>
-                    <li class="mb-2">Keep the player centered in the frame</li>
-                    <li class="mb-2">If possible, use slow-motion footage for more detailed analysis</li>
-                    <li>For long videos, use higher frame skip values to speed up processing</li>
-                </ul>
+                <div class="row">
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="h5">Smash</div>
+                        <p class="small text-muted">Powerful overhead shot</p>
+                    </div>
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="h5">Clear</div>
+                        <p class="small text-muted">High defensive shot</p>
+                    </div>
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="h5">Drop Shot</div>
+                        <p class="small text-muted">Soft deceptive shot</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tutorial Modal -->
+<style>
+    /* Re-added styles specifically for the tutorial modal, using theme colors */
+    #tutorialModal .modal-content {
+        background-color: #FCFFEF; /* Match card background */
+        border: 1px solid #44655F; /* Match card border */
+        color: #000000; /* Default text color for modal body */
+    }
+    #tutorialModal .modal-header {
+        background-color: #44655F; /* Theme primary color */
+        color: #FCFFEF; /* Text color on primary */
+        border-bottom: 1px solid #3a544f; /* Slightly darker border */
+    }
+    #tutorialModal .btn-close {
+        filter: invert(1) grayscale(100%) brightness(200%); /* Keep close button white */
+    }
+    #tutorialModal .accordion-button {
+        /* Style for collapsed accordion button */
+        background-color: #f0f3e6; /* Slightly darker than modal background for contrast */
+        color: #000000;
+    }
+    #tutorialModal .accordion-button:not(.collapsed) {
+        /* Style for expanded accordion button - using theme primary */
+        color: #FCFFEF; /* Text color on primary */
+        background-color: #44655F; /* Theme primary color */
+    }
+    #tutorialModal .accordion-button:focus {
+        box-shadow: 0 0 0 0.25rem rgba(68, 101, 95, 0.5); /* Focus ring matching theme primary */
+        border-color: #44655F;
+    }
+    #tutorialModal .accordion-item {
+        border: 1px solid #dee2e6; /* Standard accordion border */
+        margin-bottom: -1px; /* Prevent double borders */
+    }
+     #tutorialModal .accordion-body {
+        background-color: #FCFFEF; /* Ensure body matches modal background */
+     }
+     #tutorialModal .modal-footer {
+        background-color: #f0f3e6; /* Slightly darker footer background */
+        border-top: 1px solid #dee2e6;
+     }
+</style>
+<div class="modal fade" id="tutorialModal" tabindex="-1" aria-labelledby="tutorialModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tutorialModalLabel">🏸 Badminton Shot Tutorial</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Here's a quick guide to the basic badminton shots:</p>
+                
+                <div class="accordion" id="shotTutorialAccordion">
+                    <!-- Smash Shot -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingSmash">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSmash" aria-expanded="false" aria-controls="collapseSmash">
+                                <strong>💥 Smash Shot</strong>
+                            </button>
+                        </h2>
+                        <div id="collapseSmash" class="accordion-collapse collapse" aria-labelledby="headingSmash" data-bs-parent="#shotTutorialAccordion">
+                            <div class="accordion-body">
+                                <p>The smash is the most powerful offensive shot, hit downwards towards the opponent's court.</p>
+                                <h6>Key Steps:</h6>
+                                <ol>
+                                    <li><strong>Preparation:</strong> Get behind the shuttlecock, turn your body sideways, non-racket arm pointing up.</li>
+                                    <li><strong>Swing:</strong> Raise your racket arm high, elbow bent. Swing forward and upward, contacting the shuttlecock at the highest point possible.</li>
+                                    <li><strong>Contact:</strong> Hit the shuttlecock forcefully downwards, snapping your wrist at the point of impact.</li>
+                                    <li><strong>Follow-through:</strong> Continue the swing downwards across your body.</li>
+                                </ol>
+                                <p><em>Goal:</em> End the rally quickly with an unreturnable shot.</p>
+                                <div class="ratio ratio-16x9 mt-3">
+                                    <iframe src="https://www.youtube.com/embed/DWsHRZFTqtk" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Drop Shot -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingDrop">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDrop" aria-expanded="false" aria-controls="collapseDrop">
+                                <strong>💧 Drop Shot</strong>
+                            </button>
+                        </h2>
+                        <div id="collapseDrop" class="accordion-collapse collapse" aria-labelledby="headingDrop" data-bs-parent="#shotTutorialAccordion">
+                            <div class="accordion-body">
+                                <p>The drop shot is a soft, deceptive shot that lands just over the net in the opponent's frontcourt.</p>
+                                <h6>Key Steps:</h6>
+                                <ol>
+                                    <li><strong>Preparation:</strong> Similar setup to a smash or clear to deceive the opponent.</li>
+                                    <li><strong>Swing:</strong> Use a slower arm speed compared to a smash. Focus on control rather than power.</li>
+                                    <li><strong>Contact:</strong> Gently tap or slice the shuttlecock, aiming for it to just clear the net and drop sharply.</li>
+                                    <li><strong>Follow-through:</strong> Minimal follow-through to maintain control.</li>
+                                </ol>
+                                <p><em>Goal:</em> Catch the opponent off guard, force them to move forward, or set up another shot.</p>
+                                <div class="ratio ratio-16x9 mt-3">
+                                    <iframe src="https://www.youtube.com/embed/CC0FGFSarhQ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Clear Shot -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingClear">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseClear" aria-expanded="false" aria-controls="collapseClear">
+                                <strong>🚀 Clear Shot</strong>
+                            </button>
+                        </h2>
+                        <div id="collapseClear" class="accordion-collapse collapse" aria-labelledby="headingClear" data-bs-parent="#shotTutorialAccordion">
+                            <div class="accordion-body">
+                                <p>The clear is a defensive shot hit high and deep into the opponent's backcourt.</p>
+                                <h6>Key Steps:</h6>
+                                <ol>
+                                    <li><strong>Preparation:</strong> Get under the shuttlecock, turn sideways.</li>
+                                    <li><strong>Swing:</strong> Swing the racket upwards and forwards, similar to throwing a ball.</li>
+                                    <li><strong>Contact:</strong> Hit the shuttlecock high and in front of your body, aiming for a high trajectory.</li>
+                                    <li><strong>Follow-through:</strong> Follow through fully in the direction of the shot.</li>
+                                </ol>
+                                <p><em>Goal:</em> Create time to recover position, push the opponent back, or reset the rally.</p>
+                                <div class="ratio ratio-16x9 mt-3">
+                                    <iframe src="https://www.youtube.com/embed/xRv1JLg4NMM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
