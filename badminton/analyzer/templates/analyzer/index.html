@@ -3,12 +3,12 @@
 {% block title %}Home - Smart Badminton Coach{% endblock %}
 
 {% block content %}
-<div class="text-center mb-5">
-    <h1 class="display-4 mb-3">🏸 Smart Badminton Form Analyzer</h1>
-    <p class="lead">
+<div class="text-center mb-3">
+    <h1 class="display-4 mb-3" style="font-weight: bold; background-color: rgba(157, 88, 92, 0.7); padding: 5px 10px; border-radius: 5px; display: inline-block;">🏸 KineticPoseAI Badminton Form Analyzer</h1>
+    <p class="lead" style="background-color: rgba(157, 88, 92, 0.7); padding: 5px 10px; border-radius: 5px; display: inline-block;">
         Use AI-powered pose estimation to analyze and improve your badminton techniques
     </p>
-    <div class="mt-4">
+    <div class="mt-2">
         <a href="{% url 'analyzer:upload_video' %}" class="btn btn-primary btn-lg">
             <i class="fas fa-upload me-2"></i> Upload Video
         </a>
@@ -17,7 +17,7 @@
 
 <div class="row">
     <div class="col-md-6">
-        <div class="card mb-4">
+        <div class="card mb-2">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">How It Works</h5>
             </div>
@@ -31,32 +31,26 @@
                 </ol>
             </div>
         </div>
-        
+
         <div class="card">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Supported Shot Types</h5>
+                <h5 class="mb-0">Tips for Best Results</h5>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4 text-center mb-3">
-                        <div class="h5">Smash</div>
-                        <p class="small text-muted">Powerful overhead shot</p>
-                    </div>
-                    <div class="col-md-4 text-center mb-3">
-                        <div class="h5">Clear</div>
-                        <p class="small text-muted">High defensive shot</p>
-                    </div>
-                    <div class="col-md-4 text-center mb-3">
-                        <div class="h5">Drop Shot</div>
-                        <p class="small text-muted">Soft deceptive shot</p>
-                    </div>
-                </div>
+                <ul class="mb-0">
+                    <li class="mb-2">Record from a side angle to capture form clearly</li>
+                    <li class="mb-2">Ensure good lighting for better analysis</li>
+                    <li class="mb-2">Keep the player centered in the frame</li>
+                    <li class="mb-2">If possible, use slow-motion footage for more detailed analysis</li>
+                    <li>For long videos, use higher frame skip values to speed up processing</li>
+                </ul>
             </div>
         </div>
+        
     </div>
     
     <div class="col-md-6">
-        <div class="card mb-4">
+        <div class="card mb-2">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">Recent Analyses</h5>
             </div>
@@ -86,18 +80,26 @@
             </div>
         </div>
         
-        <div class="card">
+        
+        <div class="card mt-2">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Tips for Best Results</h5>
+                <h5 class="mb-0">Supported Shot Types</h5>
             </div>
             <div class="card-body">
-                <ul class="mb-0">
-                    <li class="mb-2">Record from a side angle to capture form clearly</li>
-                    <li class="mb-2">Ensure good lighting for better analysis</li>
-                    <li class="mb-2">Keep the player centered in the frame</li>
-                    <li class="mb-2">If possible, use slow-motion footage for more detailed analysis</li>
-                    <li>For long videos, use higher frame skip values to speed up processing</li>
-                </ul>
+                <div class="row">
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="h5">Smash</div>
+                        <p class="small text-muted">Powerful overhead shot</p>
+                    </div>
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="h5">Clear</div>
+                        <p class="small text-muted">High defensive shot</p>
+                    </div>
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="h5">Drop Shot</div>
+                        <p class="small text-muted">Soft deceptive shot</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

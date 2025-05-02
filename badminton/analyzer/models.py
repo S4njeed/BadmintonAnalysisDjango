@@ -4,6 +4,7 @@ import os
 import uuid
 from django.db import models
 from django.conf import settings
+from django.contrib.auth.models import User  # Import the User model
 from django.utils.translation import gettext_lazy as _
 
 
@@ -31,6 +32,16 @@ class VideoAnalysis(models.Model):
         ('drop_shot', 'Drop Shot'),
     ]
     
+    # User association
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,  # Delete analysis if user is deleted
+        related_name='video_analyses',
+        verbose_name=_('User'),
+        null=True,  # Allow null for now, maybe handle anonymous uploads later
+        blank=True, # Allow blank in forms/admin
+    )
+
     # Basic metadata
     title = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -122,16 +133,6 @@ class VideoAnalysis(models.Model):
             self.hit_frame.delete(save=False)
         if self.follow_through_frame:
             self.follow_through_frame.delete(save=False)
-            
-        # Clean up HLS files if they exist
-        if self.hls_path:
-            try:
-                hls_dir = os.path.dirname(os.path.join(settings.MEDIA_ROOT, self.hls_path))
-                if os.path.exists(hls_dir):
-                    import shutil
-                    shutil.rmtree(hls_dir)
-            except Exception as e:
-                print(f"Error removing HLS directory: {str(e)}")
             
         # Call the parent's delete method
         super().delete(*args, **kwargs)

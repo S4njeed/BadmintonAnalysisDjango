@@ -132,3 +132,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Badminton Analyzer App specific settings
 YOLO_MODELS_DIR = os.path.join(MEDIA_ROOT, 'models')
 MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100MB max upload size
+
+# Authentication settings
+LOGIN_REDIRECT_URL = '/'  # Redirect to home page after login
+LOGOUT_REDIRECT_URL = '/' # Redirect to home page after logout
