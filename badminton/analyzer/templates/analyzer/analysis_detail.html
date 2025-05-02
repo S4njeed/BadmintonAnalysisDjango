@@ -132,19 +132,10 @@
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                           {% if analysis.hls_path %}
-                               <!-- HLS Video Player -->
-                               <video class="plyr-video" playsinline controls data-poster="{{ analysis.pre_hit_frame.url|default:'' }}">
-                                   <source src="{{ MEDIA_URL }}{{ analysis.hls_path }}" type="application/x-mpegURL">
-                                   <!-- Fallback to regular MP4 if HLS fails -->
-                                   <source src="{{ analysis.output_video.url }}" type="video/mp4">
-                               </video>
-                           {% else %}
-                               <!-- Regular MP4 Video Player -->
-                               <video class="plyr-video" playsinline controls {% if analysis.pre_hit_frame %}data-poster="{{ analysis.pre_hit_frame.url }}"{% endif %}>
-                                   <source src="{{ analysis.output_video.url }}" type="video/mp4">
-                               </video>
-                           {% endif %}
+                           <!-- Regular MP4 Video Player -->
+                           <video class="plyr-video" playsinline controls {% if analysis.pre_hit_frame %}data-poster="{{ analysis.pre_hit_frame.url }}"{% endif %}>
+                               <source src="{{ analysis.output_video.url }}" type="video/mp4">
+                           </video>
                         </div>
                         <div class="text-center">
                             <a href="{% url 'analyzer:download_analysis' analysis.id %}" class="btn btn-outline-primary">
@@ -378,7 +369,7 @@
                     'restart', // Restart playback
                     'rewind', // Rewind by the seek time (default 10 seconds)
                     'play', // Play/pause playback
-                    'fast-forward', // Fast forward by the seek time (default 10 seconds)
+                    'fast-forward', // Fast-forward by the seek time (default 10 seconds)
                     'progress', // The progress bar and scrubber for playback and buffering
                     'current-time', // The current time of playback
                     'duration', // The full duration of the media
@@ -392,7 +383,7 @@
                 ],
                 speed: {
                     selected: 1,
-                    options: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2]
+                    options: [0.125,0.25, 0.5, 0.75, 1, 1.25, 1.5, 2]
                 },
                 seekTime: 5,
                 keyboard: { focused: true, global: true }

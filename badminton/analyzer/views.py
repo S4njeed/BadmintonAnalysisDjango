@@ -3,23 +3,20 @@ Views for the Analyzer app - handles HTTP requests and renders responses.
 """
 
 import os
-import json
 import threading
-from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse, HttpResponse, Http404
-from django.urls import reverse
+
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required # Import login_required
+from django.contrib.auth import login  # Import login function
+from django.contrib.auth.decorators import login_required  # Import login_required
+from django.http import JsonResponse, HttpResponse, Http404
+from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
-from django.core.files.base import ContentFile
-from django.contrib.auth import login # Import login function
-from django.urls import reverse_lazy # For redirecting after signup
 
+from .forms import VideoUploadForm, SignUpForm  # Import SignUpForm
 from .models import VideoAnalysis
-from .forms import VideoUploadForm, SignUpForm # Import SignUpForm
 from .services.video_analysis_app import DjangoVideoAnalysisApp
-
 
 # Global dictionary to track running analysis tasks
 running_analyses = {}
@@ -279,8 +276,19 @@ def delete_analysis(request, analysis_id):
     # Ensure it's a POST request for safety
     if request.method != 'POST':
         messages.error(request, "Invalid request method.")
-    return redirect('analyzer:analysis_history')
+        return redirect('analyzer:analysis_history')
 
+    # Get the analysis object, ensuring it belongs to the current user
+    analysis = get_object_or_404(VideoAnalysis, id=analysis_id, user=request.user)
+
+    try:
+        analysis_title = analysis.title or f"Analysis {analysis.id}"
+        analysis.delete()  # Delete the analysis object
+        messages.success(request, f'Successfully deleted "{analysis_title}".')
+    except Exception as e:
+        messages.error(request, f"Error deleting analysis: {str(e)}")
+
+    return redirect('analyzer:analysis_history')
 
 def signup(request):
     """Handle user registration."""
@@ -296,15 +304,3 @@ def signup(request):
     else:
         form = SignUpForm()
     return render(request, 'registration/signup.html', {'form': form})
-
-    # Get the analysis object, ensuring it belongs to the current user
-    analysis = get_object_or_404(VideoAnalysis, id=analysis_id, user=request.user)
-
-    try:
-        analysis_title = analysis.title or f"Analysis {analysis.id}"
-        analysis.delete() # This calls the overridden delete method in the model
-        messages.success(request, f'Successfully deleted "{analysis_title}".')
-    except Exception as e:
-        messages.error(request, f"Error deleting analysis: {str(e)}")
-
-    return redirect('analyzer:analysis_history')

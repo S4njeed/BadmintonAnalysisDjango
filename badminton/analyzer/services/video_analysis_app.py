@@ -3,18 +3,16 @@ VideoAnalysisApp - Adapted for Django integration with AV1 codec support.
 Handles video processing and badminton technique analysis.
 """
 
-import cv2
-import time
-import os
 import json
-import numpy as np
+import os
 import subprocess
-import tempfile
-import shutil
+import time
+import cv2
+import numpy as np
+
 from typing import Dict, Optional, Any, Tuple
 from django.conf import settings
 from django.core.files.base import ContentFile
-
 from .badminton_pose_estimator import BadmintonVideoTracker
 
 
@@ -29,6 +27,8 @@ class DjangoVideoAnalysisApp:
             analysis_model: Django model instance representing the analysis
         """
         # Django model for this analysis
+        self.last_processed_frame = None
+        self.last_analysis = None
         self.analysis_model = analysis_model
         
         # Core components
@@ -169,8 +169,9 @@ class DjangoVideoAnalysisApp:
         except Exception as e:
             print(f"Frame processing error: {str(e)}")
             return frame, None
-    
-    def prepare_empty_frame(self) -> np.ndarray:
+
+    @staticmethod
+    def prepare_empty_frame() -> np.ndarray:
         """Create an empty frame with awaiting detection message."""
         empty_frame = np.zeros((300, 400, 3), dtype=np.uint8)
         empty_frame.fill(25)  # Dark gray
@@ -194,12 +195,13 @@ class DjangoVideoAnalysisApp:
         )
         
         return empty_frame
-    
-    def generate_frame_report(self, analysis: Optional[Dict]) -> str:
+
+    @staticmethod
+    def generate_frame_report(analysis: Optional[Dict]) -> str:
         """Generate analysis report for the current frame"""
         if not analysis:
             return "No pose detected in this frame"
-        
+
         return (
             f"🏸 Frame Analysis @ {analysis['timestamp']:.2f}s\n"
             f"Phase: {analysis['shot_phase'] or 'Preparing'}\n"
@@ -207,7 +209,7 @@ class DjangoVideoAnalysisApp:
             f"Shoulder Angle: {analysis['shoulder_angle']:.1f}°\n"
             f"Form: {'✅ Within Threshold' if analysis['within_threshold'] else '❌ Needs Improvement'}"
         )
-    
+
     def generate_summary_report(self) -> str:
         """Generate end-of-analysis summary report with timing details"""
         if not self.analysis_summary:
@@ -320,8 +322,7 @@ class DjangoVideoAnalysisApp:
         if fps <= 0:  # Fallback if invalid
             fps = 30
             print("Warning: Invalid FPS detected, using 30 FPS as default")
-        
-        frame_size = (int(cap.get(3)), int(cap.get(4)))
+
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         
         # Prepare output directory and video writer
@@ -407,7 +408,6 @@ class DjangoVideoAnalysisApp:
                 if i % 10 == 0:
                     # Scale from 20% to 90% for processing
                     self._progress = 20 + int((i / total_frames) * 70)
-                    remaining = total_frames - i
                     self._status_message = f"Processing frame {i}/{total_frames} ({self._progress}% complete)"
                 
                 # Determine if this frame should be processed
@@ -420,7 +420,7 @@ class DjangoVideoAnalysisApp:
                         self.follow_through_frame is None
                 )
                 
-                # Process frame if it's on the interval or we're still looking for key frames
+                # Process frame if it's on the interval, or we're still looking for key frames
                 if self._frame_count % self._process_interval == 0 or missing_key_frames:
                     should_process = True
                 

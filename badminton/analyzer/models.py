@@ -58,13 +58,6 @@ class VideoAnalysis(models.Model):
         blank=True,
         null=True,
     )
-    hls_path = models.CharField(
-        max_length=255,
-        verbose_name=_('HLS Playlist Path'),
-        blank=True,
-        null=True,
-        help_text=_('Path to the HLS playlist file for streaming')
-    )
     
     # Analysis configuration
     shot_type = models.CharField(

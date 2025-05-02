@@ -3,15 +3,16 @@ BadmintonPoseEstimator - Core functionality for badminton pose analysis.
 Adapted for Django integration from the original implementation.
 """
 
+import math
+import os
+from dataclasses import dataclass
+from typing import Dict, Optional, Tuple, List
+
 import cv2
 import numpy as np
 import torch
-import math
-from ultralytics import YOLO
-from dataclasses import dataclass
-from typing import Dict, Optional, Tuple, List, Any
-import os
 from django.conf import settings
+from ultralytics import YOLO
 
 
 @dataclass
@@ -57,9 +58,6 @@ def is_within_threshold(grip_angle: float, shoulder_angle: float, threshold: Dic
 
 def draw_skeleton(frame: np.ndarray, keypoints: np.ndarray, connections: List[Tuple[int, int]],
                   color: Tuple[int, int, int]) -> None:
-    # Draw skeletal connections on frame - optimized for valid points only
-    valid_points = keypoints[:, 2] > 0.5  # Only draw points above confidence threshold
-
     for start_idx, end_idx in connections:
         if keypoints[start_idx, 2] > 0.5 and keypoints[end_idx, 2] > 0.5:
             try:
@@ -68,7 +66,7 @@ def draw_skeleton(frame: np.ndarray, keypoints: np.ndarray, connections: List[Tu
                 cv2.line(frame, start, end, color, 2)
                 cv2.circle(frame, start, 4, (0, 0, 255), -1)
                 cv2.circle(frame, end, 4, (0, 0, 255), -1)
-            except (IndexError, ValueError) as e:
+            except (IndexError, ValueError):
                 continue
 
 
