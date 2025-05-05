@@ -191,6 +191,73 @@
                 </div>
             {% endif %}
 
+            {% comment %} New Angle Analysis Section {% endcomment %}
+            {% if analysis.analysis_summary and analysis.analysis_summary.angles and analysis.analysis_summary.ideal_angles %}
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white"> {# Changed color for distinction #}
+                    <h3 class="h5 mb-0">Angle Analysis</h3>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Phase</th>
+                                <th>Your Angle</th>
+                                <th>Ideal Angle</th>
+                                <th>Difference</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {# Pre-Hit Row - Use pre-calculated difference #}
+                            {% with diff=analysis.analysis_summary.angle_differences.pre_hit %}
+                            <tr class="{% if diff is not None and diff != 0 %}table-warning fw-bold{% endif %}"> {# Highlight pre-hit row #}
+                                <td class="fw-bold">Pre-Hit</td>
+                                <td>{{ analysis.analysis_summary.angles.pre_hit|default_if_none:"N/A"|floatformat:1 }}°</td>
+                                <td>{{ analysis.analysis_summary.ideal_angles.pre_hit|default_if_none:"N/A"|floatformat:1 }}°</td>
+                                <td>{{ diff|default_if_none:"N/A"|floatformat:1 }}°</td>
+                            </tr>
+                            {% endwith %}
+
+                            {# Hit Row - Use pre-calculated difference #}
+                            {% with diff=analysis.analysis_summary.angle_differences.hit %}
+                            <tr>
+                                <td>Hit</td>
+                                <td>{{ analysis.analysis_summary.angles.hit|default_if_none:"N/A"|floatformat:1 }}°</td>
+                                <td>{{ analysis.analysis_summary.ideal_angles.hit|default_if_none:"N/A"|floatformat:1 }}°</td>
+                                <td>{{ diff|default_if_none:"N/A"|floatformat:1 }}°</td>
+                            </tr>
+                            {% endwith %}
+
+                            {# Follow-Through Row - Use pre-calculated difference #}
+                            {% with diff=analysis.analysis_summary.angle_differences.follow_through %}
+                            <tr>
+                                <td>Follow-Through</td>
+                                <td>{{ analysis.analysis_summary.angles.follow_through|default_if_none:"N/A"|floatformat:1 }}°</td>
+                                <td>{{ analysis.analysis_summary.ideal_angles.follow_through|default_if_none:"N/A"|floatformat:1 }}°</td>
+                                <td>{{ diff|default_if_none:"N/A"|floatformat:1 }}°</td>
+                            </tr>
+                            {% endwith %}
+                        </tbody>
+                    </table>
+                    <small class="text-muted">Angles represent key joint configurations. Differences indicate deviation from the ideal form.</small>
+                </div>
+            </div>
+            {% endif %}
+            {% comment %} End New Angle Analysis Section {% endcomment %}
+
+            {% comment %} New AI Feedback Section {% endcomment %}
+            {% if analysis.analysis_summary and analysis.analysis_summary.ai_feedback %}
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white"> {# Changed color for distinction #}
+                    <h3 class="h5 mb-0">AI Coaching Feedback</h3>
+                </div>
+                <div class="card-body">
+                    <p>{{ analysis.analysis_summary.ai_feedback|linebreaksbr }}</p>
+                </div>
+            </div>
+            {% endif %}
+            {% comment %} End New AI Feedback Section {% endcomment %}
+
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white">
                     <h3 class="h5 mb-0">Configuration</h3>

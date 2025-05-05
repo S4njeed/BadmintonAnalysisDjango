@@ -14,6 +14,7 @@ from typing import Dict, Optional, Any, Tuple
 from django.conf import settings
 from django.core.files.base import ContentFile
 from .badminton_pose_estimator import BadmintonVideoTracker
+from .ollama_feedback_service import generate_feedback # Import the feedback service
 
 
 class DjangoVideoAnalysisApp:
@@ -41,7 +42,7 @@ class DjangoVideoAnalysisApp:
         self._start_time: Optional[float] = None
         self._frame_count = 0
         self._is_analyzing = False
-        self._stop_requested = False
+        self.stop_requested = False
         
         # Progress tracking for async feedback
         self._progress = 0
@@ -85,7 +86,7 @@ class DjangoVideoAnalysisApp:
         if not self._is_analyzing:
             return "No analysis is currently running"
         
-        self._stop_requested = True
+        self.stop_requested = True
         return "Stop requested. Analysis will finish soon..."
     
     def save_frame_as_image(self, frame: np.ndarray, field_name: str) -> bool:
@@ -135,7 +136,7 @@ class DjangoVideoAnalysisApp:
         self.tracker = BadmintonVideoTracker(target_shot_type=shot_type)
         self._key_frames = {k: None for k in self._key_frames}
         self._frame_count = 0
-        self._stop_requested = False
+        self.stop_requested = False
         return f"Initialized tracker for {shot_type.replace('_', ' ').title()} analysis"
     
     def process_frame(self, frame: np.ndarray, current_time: float) -> Tuple[Optional[np.ndarray], Optional[Dict]]:
@@ -398,7 +399,7 @@ class DjangoVideoAnalysisApp:
             
             for i, frame in enumerate(all_frames):
                 # Check if stop was requested
-                if self._stop_requested:
+                if self.stop_requested:
                     self._status_message = f"Analysis stopped after processing {i} frames"
                     break
                 
@@ -500,10 +501,25 @@ class DjangoVideoAnalysisApp:
             
             # Get technique summary from tracker
             raw_summary = self.tracker.get_technique_summary()
-            
+
             # Process the summary to make it JSON serializable
             self.analysis_summary = make_json_serializable(raw_summary)
-            
+
+            # --- Generate AI Feedback using Ollama ---
+            if self.analysis_summary.get('status') == 'complete':
+                self._status_message = "Generating AI feedback..."
+                self._progress = 95 # Update progress
+                try:
+                    ai_feedback = generate_feedback(self.analysis_summary)
+                    self.analysis_summary['ai_feedback'] = ai_feedback
+                    print("AI Feedback generated successfully.")
+                except Exception as feedback_e:
+                    print(f"Error generating AI feedback: {feedback_e}")
+                    self.analysis_summary['ai_feedback'] = "Could not generate AI feedback due to an error."
+            else:
+                 self.analysis_summary['ai_feedback'] = "AI feedback skipped due to incomplete analysis."
+            # --- End AI Feedback Generation ---
+
             # Save key frames to model
             self.save_key_frames()
             
@@ -563,4 +579,4 @@ class DjangoVideoAnalysisApp:
         """Reset tracking state while preserving key frames"""
         self._start_time = None
         self._frame_count = 0
-        self._stop_requested = False
+        self.stop_requested = False
