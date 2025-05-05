@@ -167,14 +167,14 @@ class BadmintonVideoTracker:
         # Modified for Django: Get model paths from settings or use default
         models_dir = getattr(settings, 'YOLO_MODELS_DIR', os.path.join(settings.MEDIA_ROOT, 'models'))
         os.makedirs(models_dir, exist_ok=True)
-       
+
         pose_model_path = os.path.join(models_dir, f'yolo11{model_size}-pose.pt')
         shuttle_model_path = os.path.join(models_dir, 'shuttlecock.pt')
-       
+
         # Check if models exist, if not, use default paths
         if not os.path.exists(pose_model_path):
             pose_model_path = f'yolo11{model_size}-pose.pt'
-       
+
         if not os.path.exists(shuttle_model_path):
             shuttle_model_path = 'shuttlecock.pt'
 
@@ -220,12 +220,12 @@ class BadmintonVideoTracker:
         self.prev_shuttle_box: Optional[np.ndarray] = None
         self.prev_time: Optional[float] = None
         self.last_analysis: Optional[FrameAnalysis] = None
-        
-        # New: Track the minimum distance between wrist and shuttlecock
+
+        #Track the minimum distance between wrist and shuttlecock
         self.min_shuttle_distance = float('inf')
         self.min_distance_frame = None
-        
-        # New: Track sequence of phases for proper detection order
+
+        #Track sequence of phases for proper detection order
         self.sequence_state = 'initial'  # Can be 'initial', 'pre_hit', 'looking_for_hit', 'looking_for_follow'
         self.found_hit = False
         self.awaiting_follow_through = False
@@ -402,7 +402,7 @@ class BadmintonVideoTracker:
         # Calculate angles and shot phase
         grip_angle = self.calculate_grip_angle(keypoints)
         shoulder_angle = self.calculate_shoulder_angle(keypoints)
-        
+
         # Track the minimum distance between wrist and shuttlecock (for hit detection)
         if current_distance < self.min_shuttle_distance and shuttle_box is not None:
             self.min_shuttle_distance = current_distance
@@ -412,7 +412,7 @@ class BadmintonVideoTracker:
                 'timestamp': timestamp,
                 'shuttle_box': shuttle_box.copy() if shuttle_box is not None else None
             }
-            
+
         # Determine phase based on improved sequence logic
         shot_phase = self.determine_shot_phase_improved(
             current_distance,
@@ -452,22 +452,22 @@ class BadmintonVideoTracker:
         4. If follow-through is detected before hit, continue detection
         """
         thresholds = self._thresholds_cache
-        
+
         if not thresholds:
             print(f"Invalid shot type: {self.target_shot_type}")
             return None
-            
+
         # Check thresholds for different phases
         in_pre_hit = is_within_threshold(grip_angle, shoulder_angle, thresholds['pre_hit'])
         in_hit = is_within_threshold(grip_angle, shoulder_angle, thresholds['hit'])
         in_follow = is_within_threshold(grip_angle, shoulder_angle, thresholds['follow_through'])
-        
+
         # State machine to handle sequence detection
         if self.sequence_state == 'initial':
             if in_pre_hit:
                 self.sequence_state = 'pre_hit'
                 return 'pre_hit'
-                
+
         elif self.sequence_state == 'pre_hit':
             if in_pre_hit:
                 return 'pre_hit'
@@ -483,7 +483,7 @@ class BadmintonVideoTracker:
                 self.sequence_state = 'looking_for_hit'
                 self.awaiting_follow_through = True
                 return 'pre_hit'  # Continue showing as pre-hit
-                
+
         elif self.sequence_state == 'looking_for_hit':
             if not self.found_hit and in_hit:
                 self.found_hit = True
@@ -497,7 +497,7 @@ class BadmintonVideoTracker:
                 return 'hit'
             else:
                 return 'pre_hit'  # We're still in the hunting phase
-                
+
         elif self.sequence_state == 'looking_for_follow':
             if in_follow:
                 return 'follow_through'
@@ -506,7 +506,7 @@ class BadmintonVideoTracker:
                 self.reset_detection_state()
                 self.sequence_state = 'pre_hit'
                 return 'pre_hit'
-        
+
         # Default return, maintain previous state
         return None
 
@@ -532,7 +532,7 @@ class BadmintonVideoTracker:
                 'timestamp': timestamp,
                 'distance': current_distance
             })
-            
+
         self.last_shuttle_distance = current_distance
         self.prev_keypoints = keypoints
         self.prev_time = timestamp
@@ -583,7 +583,7 @@ class BadmintonVideoTracker:
         draw_skeleton(viz_frame, keypoints, connections, current_color)
         draw_shuttlecock(viz_frame, shuttle_box)
         draw_info_overlay(viz_frame, analysis)
-        
+
         # Additional info for wrist-shuttlecock distance
         if shuttle_box is not None:
             wrist_point = keypoints[self.KEYPOINTS['RIGHT_WRIST'], :2]
@@ -598,7 +598,7 @@ class BadmintonVideoTracker:
                 (255, 255, 255),
                 2
             )
-            
+
             # Draw a line between wrist and shuttlecock center
             shuttle_center = np.array([
                 (shuttle_box[0] + shuttle_box[2]) / 2,
@@ -627,7 +627,7 @@ class BadmintonVideoTracker:
             for phase, data in self.key_frames.items():
                 if data: # Check if data exists for the phase
                     serializable_data = {}
-                    
+
                     # Handle timestamp (should be JSON-safe, but check for None)
                     timestamp = data.get('timestamp')
                     serializable_data['timestamp'] = timestamp if timestamp is not None else None
@@ -674,11 +674,48 @@ class BadmintonVideoTracker:
                  print(f"Error calculating timing: {timing_e}")
                  # Decide how to handle timing errors, e.g., return empty or specific error message
 
+            # --- Calculate and add angles and differences for key frames ---
+            calculated_angles = {}
+            ideal_angles_data = {}
+            angle_differences = {} # New dictionary for differences
+            shot_thresholds = self.SHOT_THRESHOLDS.get(self.target_shot_type, {})
+
+            for phase, data in self.key_frames.items():
+                calculated_angle = None
+                ideal_angle = None
+
+                if data and 'keypoints' in data:
+                    keypoints_data = data['keypoints']
+                    # Ensure keypoints are numpy array for calculation
+                    # Convert list back to ndarray if necessary for calculation
+                    keypoints = np.array(keypoints_data) if isinstance(keypoints_data, list) else keypoints_data
+
+                    if isinstance(keypoints, np.ndarray) and keypoints.shape[0] > max(self.KEYPOINTS.values()):
+                         # Check if keypoints array has enough points before calculating
+                        calculated_angle = self.calculate_grip_angle(keypoints)
+                    # else: calculated_angle remains None
+
+                calculated_angles[phase] = calculated_angle
+
+                # Get ideal angles from thresholds
+                phase_thresholds = shot_thresholds.get(phase, {})
+                ideal_angle = phase_thresholds.get('grip', None)
+                ideal_angles_data[phase] = ideal_angle
+
+                # Calculate difference if both angles are valid numbers
+                if isinstance(calculated_angle, (int, float)) and isinstance(ideal_angle, (int, float)):
+                    angle_differences[phase] = calculated_angle - ideal_angle
+                else:
+                    angle_differences[phase] = None # Cannot calculate difference
+
             return {
                 'status': 'complete',
                 'shot_type': self.target_shot_type,
                 'key_frames': serializable_key_frames,
-                'timing': timing_data
+                'timing': timing_data,
+                'angles': calculated_angles, # Add calculated angles
+                'ideal_angles': ideal_angles_data, # Add ideal angles
+                'angle_differences': angle_differences # Add calculated differences
             }
         except Exception as e: # General catch-all for unexpected errors during processing
             print(f"Error generating technique summary: {str(e)}")

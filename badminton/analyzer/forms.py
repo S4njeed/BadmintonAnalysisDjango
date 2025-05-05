@@ -58,3 +58,5 @@ class SignUpForm(UserCreationForm):
         # Add Bootstrap classes
         for field_name, field in self.fields.items():
             field.widget.attrs['class'] = 'form-control'
+
+

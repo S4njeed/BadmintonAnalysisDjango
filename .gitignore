@@ -7,3 +7,5 @@ __pycache__
 .idea
 badminton/analyzer/test_blackbox.py
 badminton/analyzer/test_whitebox.py
+auth
+auth.pub
