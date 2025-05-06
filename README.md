@@ -38,6 +38,13 @@ ollama pull gemma3:4b
     python manage.py migrate
     ```
 
+    If you encounter errors in the console related to the database, you might need to create migrations first:
+
+    ```bash
+    python manage.py makemigrations
+    python manage.py migrate
+    ```
+
 3.  **Run the development server:**
     Start the Django development server using the following command:
 
