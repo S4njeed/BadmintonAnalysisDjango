@@ -1,8 +1,3 @@
-"""
-BadmintonPoseEstimator - Core functionality for badminton pose analysis.
-Adapted for Django integration from the original implementation.
-"""
-
 import math
 import os
 from dataclasses import dataclass

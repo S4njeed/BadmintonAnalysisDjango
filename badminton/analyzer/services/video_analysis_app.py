@@ -18,7 +18,7 @@ from .ollama_feedback_service import generate_feedback # Import the feedback ser
 
 
 class DjangoVideoAnalysisApp:
-    """Django-specific implementation of the video analysis application."""
+    # Django-specific implementation of the video analysis application
     
     def __init__(self, analysis_model=None):
         """
@@ -61,12 +61,12 @@ class DjangoVideoAnalysisApp:
     
     @property
     def progress(self) -> int:
-        """Return current progress percentage."""
+        # Return current progress percentage
         return self._progress
     
     @property
     def status_message(self) -> str:
-        """Return current status message."""
+        # Return current status message
         return self._status_message
     
     @property
@@ -82,7 +82,7 @@ class DjangoVideoAnalysisApp:
         return self._key_frames['follow_through']
     
     def request_stop(self) -> str:
-        """Request analysis process to stop gracefully"""
+        # Request analysis process to stop gracefully
         if not self._is_analyzing:
             return "No analysis is currently running"
         
@@ -122,7 +122,7 @@ class DjangoVideoAnalysisApp:
             return False
     
     def update_key_frames(self, new_frames: Dict[str, Optional[Dict]]) -> None:
-        """Safely update stored key frames from tracker results"""
+        # Safely update stored key frames from tracker results
         # Check each phase (pre-hit, hit, follow-through)
         for phase in self._key_frames:
             # Only process if we have data for this phase
@@ -132,7 +132,7 @@ class DjangoVideoAnalysisApp:
                     self._key_frames[phase] = new_frames[phase]['frame'].copy()
     
     def initialize_tracker(self, shot_type: str) -> str:
-        """Set up a new tracker instance for the specified shot type"""
+        # Set up a new tracker instance for the specified shot type
         self.tracker = BadmintonVideoTracker(target_shot_type=shot_type)
         self._key_frames = {k: None for k in self._key_frames}
         self._frame_count = 0
@@ -140,7 +140,7 @@ class DjangoVideoAnalysisApp:
         return f"Initialized tracker for {shot_type.replace('_', ' ').title()} analysis"
     
     def process_frame(self, frame: np.ndarray, current_time: float) -> Tuple[Optional[np.ndarray], Optional[Dict]]:
-        """Process a single video frame for pose analysis"""
+        # Process a single video frame for pose analysis
         if frame is None:
             return None, None
         
@@ -173,7 +173,7 @@ class DjangoVideoAnalysisApp:
 
     @staticmethod
     def prepare_empty_frame() -> np.ndarray:
-        """Create an empty frame with awaiting detection message."""
+        # Create an empty frame with awaiting detection message
         empty_frame = np.zeros((300, 400, 3), dtype=np.uint8)
         empty_frame.fill(25)  # Dark gray
         text = "Awaiting detection..."
@@ -199,7 +199,7 @@ class DjangoVideoAnalysisApp:
 
     @staticmethod
     def generate_frame_report(analysis: Optional[Dict]) -> str:
-        """Generate analysis report for the current frame"""
+        # Generate analysis report for the current frame
         if not analysis:
             return "No pose detected in this frame"
 
@@ -269,10 +269,6 @@ class DjangoVideoAnalysisApp:
         return results
     
     def analyze_video(self) -> Dict[str, Any]:
-        """
-        Main method to analyze a video file.
-        This is adapted from analyze_frame_by_frame to work in Django.
-        """
         # Ensure we have a valid model and video
         if self.analysis_model is None:
             return {
@@ -576,7 +572,7 @@ class DjangoVideoAnalysisApp:
             self._is_analyzing = False
     
     def cleanup(self) -> None:
-        """Reset tracking state while preserving key frames"""
+        # Reset tracking state while preserving key frames
         self._start_time = None
         self._frame_count = 0
         self.stop_requested = False
