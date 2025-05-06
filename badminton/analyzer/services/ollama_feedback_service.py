@@ -7,8 +7,7 @@ from django.conf import settings
 OLLAMA_MODEL_ID = "gemma3:4b" # Gemma 3 4b
 
 def read_context_file():
-    """Reads the context.txt file."""
-    # Assumes context.txt is one level above BASE_DIR
+    # Reads the context file from one directory up from the current base directory
     context_file_path = os.path.join(settings.BASE_DIR, '..', 'context.txt')
     try:
         with open(context_file_path, 'r', encoding='utf-8') as f:
@@ -21,16 +20,6 @@ def read_context_file():
         return ""
 
 def generate_feedback(analysis_summary: dict) -> str:
-    """
-    Generates feedback on the badminton analysis using Ollama and a specific Gemma model.
-
-    Args:
-        analysis_summary: A dictionary containing the analysis results
-                          (timing, angles, ideal_angles, angle_differences, etc.).
-
-    Returns:
-        A string containing the generated feedback, or an error message.
-    """
     if not analysis_summary or analysis_summary.get('status') != 'complete':
         return "Feedback cannot be generated: Analysis is incomplete or missing."
 
@@ -58,6 +47,9 @@ Analysis Data ON WHAT THE FEEDBACK SHOULD BE BASED OFF OF:
 ```json
 {analysis_data_str}
 ```
+
+Context for the analysis:
+{base_context}
 
 Coaching Feedback:
 """
