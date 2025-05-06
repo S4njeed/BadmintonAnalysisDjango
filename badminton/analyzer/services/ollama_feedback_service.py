@@ -5,10 +5,10 @@ from django.conf import settings
 
 # Define the model ID directly
 OLLAMA_MODEL_ID = "gemma3:4b" # Gemma 3 4b
+CONTEXT = False # Set to True if you want to use the context file
 
 def read_context_file():
-    """Reads the context.txt file."""
-    # Assumes context.txt is one level above BASE_DIR
+    # Reads the context file from one directory up from the current base directory
     context_file_path = os.path.join(settings.BASE_DIR, '..', 'context.txt')
     try:
         with open(context_file_path, 'r', encoding='utf-8') as f:
@@ -21,31 +21,23 @@ def read_context_file():
         return ""
 
 def generate_feedback(analysis_summary: dict) -> str:
-    """
-    Generates feedback on the badminton analysis using Ollama and a specific Gemma model.
-
-    Args:
-        analysis_summary: A dictionary containing the analysis results
-                          (timing, angles, ideal_angles, angle_differences, etc.).
-
-    Returns:
-        A string containing the generated feedback, or an error message.
-    """
     if not analysis_summary or analysis_summary.get('status') != 'complete':
         return "Feedback cannot be generated: Analysis is incomplete or missing."
 
     try:
         # Read the base context/instructions
-        base_context = read_context_file()
-
+        if CONTEXT:
+            base_context = read_context_file()
+        else: 
+            base_context = "No context provided."
         # Prepare the analysis data for the prompt
         # Convert dict to a more readable string format (e.g., JSON pretty print)
         analysis_data_str = json.dumps(analysis_summary, indent=2)
 
         # Construct the prompt
         # Modified prompt to be more explicit about plain text output and no follow-ups
-        prompt = f"""
-You are an expert badminton coach AI. Analyze the following badminton shot data and provide constructive feedback.
+        system_prompt = f"""
+        You are an expert badminton coach AI. Analyze the following badminton shot data and provide constructive feedback.
 Focus on the grip angles, particularly the pre-hit phase, comparing the user's angles to the ideal angles.
 Explain the importance of the correct angles for the specific shot type ({analysis_summary.get('shot_type', 'unknown')}).
 Keep the feedback concise, actionable, and encouraging.
@@ -53,11 +45,15 @@ DO NOT ASK ANY FOLLOW-UP QUESTIONS.
 Provide ONLY the coaching feedback based on the analysis data.
 Your response should be plain text, without any formatting (like bolding, bullet points, or lists).
 Focus on the form, especially the pre-hit phase, use numbers from the data, explain improvements, and state the target numbers.
-
+"""
+        prompt = f"""
 Analysis Data ON WHAT THE FEEDBACK SHOULD BE BASED OFF OF:
 ```json
 {analysis_data_str}
 ```
+
+Context for the analysis:
+{base_context}
 
 Coaching Feedback:
 """
@@ -65,7 +61,9 @@ Coaching Feedback:
         # Call Ollama API
         response = ollama.chat(
             model=OLLAMA_MODEL_ID,
-            messages=[{'role': 'user', 'content': prompt}]
+            messages=[
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': prompt}]
         )
 
         if response and 'message' in response and 'content' in response['message']:
