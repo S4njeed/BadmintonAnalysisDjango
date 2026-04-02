@@ -1,273 +1,64 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}BadmintonKineticPose{% endblock %}</title>
-    
-    <!-- Bootstrap CSS -->
+    <meta name="color-scheme" content="dark">
+    <title>{% block title %}KineticPoseAI Badminton Form Analyzer{% endblock %}</title>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- Google Fonts - Roboto -->
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    
-    <style>
-        body {
-            padding-top: 56px;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            background-color: #9D585C;
-            color: #FFFFFF;
-            font-family: 'Roboto', sans-serif;
-            /* Badminton court-like background pattern */
-            background-color: #9D585C; /* Original background color */
-            /* Thicker badminton court-like background pattern */
-            background-image: linear-gradient(to right, rgba(255, 255, 255, 0.2) 3px, transparent 3px), linear-gradient(to bottom, rgba(255, 255, 255, 0.2) 3px, transparent 3px);
-            background-size: 40px 40px; /* Adjust size of the pattern for thicker lines */
-        }
-        
-        .content {
-            flex: 1;
-            padding: 2rem 0;
-        }
-        
-        .footer {
-            margin-top: auto;
-            padding: 1rem 0;
-            background-color: #9D585C;
-            color: #000000;
-        }
-        
-        .navbar-brand {
-            font-weight: bold;
-            color: #000000 !important;
-        }
-        
-        .card {
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-            background-color: #FCFFEF;
-            border: 1px solid #44655F; /* Added subtle border */
-        }
-        
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
-        }
-        
-        .progress {
-            height: 25px;
-        }
-        
-        /* Custom classes for key frames and analysis display */
-        .key-frame-container {
-            margin-bottom: 1.5rem;
-        }
-        
-        .key-frame-img {
-            width: 100%;
-            max-height: 300px;
-            object-fit: contain;
-            border: 1px solid #dee2e6;
-            border-radius: 0.25rem;
-        }
-        
-        .analysis-heading {
-            color: #000000;
-            margin-top: 2rem;
-            margin-bottom: 1rem;
-        }
-        
-        /* Custom animation for progress bar */
-        @keyframes progress-bar-stripes {
-            from { background-position: 1rem 0; }
-            to { background-position: 0 0; }
-        }
-        
-        .progress-bar-animated {
-            animation: progress-bar-stripes 1s linear infinite;
-        }
+    <link rel="stylesheet" href="{% static 'analyzer/css/theme.css' %}">
 
-        /* Button styling */
-        .btn-primary {
-            background-color: #44655F;
-            border-color: #44655F;
-        }
-
-        .btn-primary:hover {
-            background-color: #3a544f;
-            border-color: #3a544f;
-        }
-
-        .btn-outline-primary {
-            color: #44655F;
-            border-color: #44655F;
-        }
-
-        .btn-outline-primary:hover {
-            background-color: #44655F;
-            border-color: #44655F;
-        }
-
-        /* Navbar styling */
-        .navbar {
-            background-color: #000000 !important;
-        }
-
-        .nav-link {
-            color: #FCFFEF !important;
-        }
-
-        .nav-link:hover {
-            color: #9D585C !important;
-        }
-
-        .nav-link.active {
-            color: #9D585C !important;
-        }
-
-        .navbar-brand {
-            font-weight: bold;
-            color: #FCFFEF !important;
-        }
-
-        .navbar-toggler {
-            border-color: #FCFFEF;
-        }
-
-
-        /* Card header styling */
-        .card-header {
-            background-color: #44655F !important;
-            color: #FCFFEF !important;
-            font-weight: bold;
-            font-size: 1.1rem; /* Slightly larger font size */
-        }
-
-        /* Button styling */
-        .btn-primary {
-            background-color: #44655F;
-            border-color: #44655F;
-            transition: background-color 0.3s ease, border-color 0.3s ease; /* Add transition for hover effect */
-        }
-
-        .btn-primary:hover {
-            background-color: #3a544f;
-            border-color: #3a544f;
-            transform: translateY(-1px); /* Subtle lift on hover */
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Subtle shadow on hover */
-        }
-
-        .btn-outline-primary {
-            color: #44655F;
-            border-color: #44655F;
-            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease; /* Add transition for hover effect */
-        }
-
-        .btn-outline-primary:hover {
-            background-color: #44655F;
-            border-color: #44655F;
-            color: #FCFFEF !important; /* Change text color on hover */
-            transform: translateY(-1px); /* Subtle lift on hover */
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Subtle shadow on hover */
-        }
-
-        /* Form styling */
-        .form-control {
-            background-color: #FCFFEF;
-            border-color: #44655F;
-            color: #000000;
-        }
-
-        .form-control:focus {
-            background-color: #FCFFEF;
-            border-color: #44655F;
-            color: #000000;
-        }
-
-        /* List group styling */
-        .list-group-item {
-            background-color: #FCFFEF;
-            border-color: #44655F;
-            color: #000000;
-        }
-
-        .list-group-item:hover {
-            background-color: #f0f3e6;
-        }
-
-        /* Table styling */
-        .table {
-            color: #000000;
-        }
-
-        .table-hover tbody tr:hover {
-            background-color: #f0f3e6;
-        }
-
-        /* Badge styling */
-        .badge {
-            background-color: #44655F;
-        }
-    </style>
-    
     {% block extra_css %}{% endblock %}
 </head>
-<body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
-        <div class="container">
+<body data-bs-theme="dark" class="d-flex flex-column min-vh-100">
+    <nav class="navbar navbar-expand-lg fixed-top app-navbar">
+        <div class="container-xl">
             <a class="navbar-brand" href="{% url 'analyzer:home' %}">
-                🏸 KineticPoseAI
+                KineticPoseAI
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{% url 'analyzer:home' %}">Home</a>
+                        <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'analyzer:home' %}">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if 'upload' in request.path %}active{% endif %}" href="{% url 'analyzer:upload_video' %}">Upload Video</a>
+                        <a class="nav-link {% if request.resolver_match.url_name == 'upload_video' %}active{% endif %}" href="{% url 'analyzer:upload_video' %}">Upload Video</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if 'history' in request.path %}active{% endif %}" href="{% url 'analyzer:analysis_history' %}">History</a>
+                        <a class="nav-link {% if request.resolver_match.url_name == 'analysis_history' %}active{% endif %}" href="{% url 'analyzer:analysis_history' %}">History</a>
                     </li>
-                    {# Authentication Links #}
                     {% if user.is_authenticated %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-user me-1"></i> {{ user.username }}
+                        <li class="nav-item dropdown ms-lg-2">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarUserDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-user-astronaut me-2"></i>{{ user.username }}
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                                {# Add links to profile, settings etc. here if needed #}
-                                {# <li><a class="dropdown-item" href="#">Profile</a></li> #}
-                                {# <li><hr class="dropdown-divider"></li> #}
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarUserDropdown">
                                 <li>
-                                    <form id="logout-form" action="{% url 'logout' %}" method="post" style="display: none;">
+                                    <span class="dropdown-item-text text-muted small">Signed in as {{ user.username }}</span>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form id="logout-form" action="{% url 'logout' %}" method="post" class="d-none">
                                         {% csrf_token %}
                                     </form>
                                     <a class="dropdown-item" href="#" onclick="document.getElementById('logout-form').submit(); return false;">
-                                        <i class="fas fa-sign-out-alt me-1"></i> Logout
+                                        <i class="fas fa-right-from-bracket me-2"></i>Logout
                                     </a>
                                 </li>
                             </ul>
                         </li>
                     {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'login' in request.path %}active{% endif %}" href="{% url 'login' %}">
-                                <i class="fas fa-sign-in-alt me-1"></i> Login
-                            </a>
+                        <li class="nav-item ms-lg-2">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'login' %}active{% endif %}" href="{% url 'login' %}">Login</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if 'signup' in request.path %}active{% endif %}" href="{% url 'signup' %}">
-                                <i class="fas fa-user-plus me-1"></i> Sign Up
-                            </a>
+                            <a class="nav-link {% if request.resolver_match.url_name == 'signup' %}active{% endif %}" href="{% url 'signup' %}">Sign Up</a>
                         </li>
                     {% endif %}
                 </ul>
@@ -275,41 +66,36 @@
         </div>
     </nav>
 
-    <!-- Main Content -->
     <main class="content">
-        <div class="container">
+        <div class="container-xl">
             {% block content %}{% endblock %}
         </div>
     </main>
 
-    <!-- Footer -->
     <footer class="footer">
-        <div class="container">
-            <div class="text-center">
-                <p class="mb-0">&copy; {% now "Y" %} Smart Badminton Coach</p>
-                <small class="text-muted">Powered by Django and CV Technology</small>
+        <div class="container-xl">
+            <div class="d-flex flex-column flex-md-row align-items-center justify-content-between gap-2 text-center text-md-start">
+                <div>
+                    <p class="mb-1 fw-semibold text-white">KineticPoseAI Badminton Form Analyzer</p>
+                    <small>Built for fast form breakdowns, mobile review, and AI coaching feedback.</small>
+                </div>
+                <small>Powered by Django, computer vision, and live analysis tooling.</small>
             </div>
         </div>
     </footer>
 
-    <!-- Bootstrap Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    
-    <!-- Common JavaScript -->
+    <script src="{% static 'analyzer/js/hero-pretext.js' %}"></script>
     <script>
-        // Common JavaScript code here
-        $(document).ready(function() {
-            // Initialize tooltips
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
+        document.addEventListener('DOMContentLoaded', function () {
+            const tooltipTriggerList = Array.prototype.slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
             });
         });
     </script>
-    
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -1,7 +1,7 @@
 {% extends 'analyzer/base.html' %}
 {% load analyzer_filters %}
 
-{% block title %}Analysis #{{ analysis.id }} - Smart Badminton Coach{% endblock %}
+{% block title %}Analysis #{{ analysis.id }} - KineticPoseAI Badminton Form Analyzer{% endblock %}
 
 {% block extra_css %}
 <!-- Video.js CSS -->
@@ -392,6 +392,306 @@
 {% endblock %}
 
 {% block content %}
+<style>
+    body {
+        background:
+            radial-gradient(circle at 10% 8%, rgba(0, 229, 255, 0.18), transparent 26%),
+            radial-gradient(circle at 86% 12%, rgba(206, 255, 0, 0.12), transparent 24%),
+            radial-gradient(circle at 50% 100%, rgba(255, 93, 143, 0.09), transparent 28%),
+            linear-gradient(180deg, #05070b 0%, #090f16 48%, #05070b 100%) !important;
+        color: #f4f8ff !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+
+    .content {
+        padding-top: clamp(1.5rem, 3vw, 3rem);
+    }
+
+    .analysis-header,
+    .card,
+    .modal-content,
+    .image-modal,
+    .dropdown-menu {
+        background: rgba(12, 18, 28, 0.78) !important;
+        border-color: rgba(255, 255, 255, 0.08) !important;
+        color: #f4f8ff !important;
+        backdrop-filter: blur(22px);
+    }
+
+    .analysis-header {
+        position: relative;
+        overflow: hidden;
+        border-radius: 30px;
+        padding: clamp(1.4rem, 3vw, 2.5rem);
+        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.52) !important;
+    }
+
+    .analysis-header::before {
+        content: '';
+        position: absolute;
+        inset: -2px;
+        background:
+            radial-gradient(circle at 12% 18%, rgba(0, 229, 255, 0.2), transparent 24%),
+            radial-gradient(circle at 84% 16%, rgba(206, 255, 0, 0.18), transparent 22%),
+            radial-gradient(circle at 64% 92%, rgba(255, 93, 143, 0.12), transparent 18%),
+            linear-gradient(120deg, rgba(255, 255, 255, 0.05), transparent 26%, transparent 74%, rgba(255, 255, 255, 0.04));
+        pointer-events: none;
+    }
+
+    .analysis-header h1,
+    .analysis-header h2,
+    .analysis-header h3,
+    .analysis-header .text-muted {
+        color: #f4f8ff !important;
+    }
+
+    .analysis-header .text-muted {
+        color: #99a8bb !important;
+    }
+
+    .card,
+    .modal-content {
+        border-radius: 22px !important;
+    }
+
+    .card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 24px 54px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(206, 255, 0, 0.05) !important;
+    }
+
+    .card-header,
+    .card-header.bg-primary,
+    .card-header.bg-success,
+    .card-header.bg-info,
+    .card-header.bg-secondary {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03)) !important;
+        color: #f4f8ff !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #e6ff50, #b9ff00) !important;
+        color: #061018 !important;
+        border-color: rgba(206, 255, 0, 0.35) !important;
+    }
+
+    .btn-outline-primary {
+        color: #00e5ff !important;
+        border-color: rgba(0, 229, 255, 0.45) !important;
+        background: rgba(0, 229, 255, 0.04) !important;
+    }
+
+    .btn-outline-secondary {
+        color: #d7e1ee !important;
+        border-color: rgba(255, 255, 255, 0.16) !important;
+        background: rgba(255, 255, 255, 0.04) !important;
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, #44ffad, #00d48a) !important;
+        color: #041018 !important;
+        border-color: rgba(52, 245, 162, 0.35) !important;
+    }
+
+    .btn-outline-success {
+        color: #92ffd0 !important;
+        border-color: rgba(52, 245, 162, 0.35) !important;
+        background: rgba(52, 245, 162, 0.04) !important;
+    }
+
+    .btn-danger {
+        background: linear-gradient(135deg, #ff8698, #ff355f) !important;
+        border-color: rgba(255, 93, 116, 0.35) !important;
+    }
+
+    .btn-info {
+        background: linear-gradient(135deg, #71f2ff, #00e5ff) !important;
+        color: #041018 !important;
+        border-color: rgba(0, 229, 255, 0.35) !important;
+    }
+
+    .btn-warning {
+        background: linear-gradient(135deg, #ffe48d, #ffd25e) !important;
+        color: #171100 !important;
+        border-color: rgba(255, 210, 94, 0.35) !important;
+    }
+
+    .bg-primary,
+    .badge.bg-primary,
+    .card-header.bg-primary,
+    .progress-bar.bg-primary {
+        background: rgba(206, 255, 0, 0.14) !important;
+        color: #ceff00 !important;
+    }
+
+    .bg-success,
+    .badge.bg-success,
+    .card-header.bg-success,
+    .progress-bar.bg-success {
+        background: rgba(52, 245, 162, 0.14) !important;
+        color: #92ffd0 !important;
+    }
+
+    .bg-info,
+    .badge.bg-info,
+    .card-header.bg-info,
+    .progress-bar.bg-info {
+        background: rgba(0, 229, 255, 0.14) !important;
+        color: #9cefff !important;
+    }
+
+    .bg-warning,
+    .badge.bg-warning,
+    .card-header.bg-warning,
+    .progress-bar.bg-warning {
+        background: rgba(255, 210, 94, 0.14) !important;
+        color: #ffe3a0 !important;
+    }
+
+    .bg-danger,
+    .badge.bg-danger,
+    .card-header.bg-danger,
+    .progress-bar.bg-danger {
+        background: rgba(255, 93, 116, 0.14) !important;
+        color: #ffb0bf !important;
+    }
+
+    .bg-secondary,
+    .badge.bg-secondary,
+    .card-header.bg-secondary,
+    .progress-bar.bg-secondary {
+        background: rgba(255, 255, 255, 0.08) !important;
+        color: #f4f8ff !important;
+    }
+
+    .text-primary {
+        color: #ceff00 !important;
+    }
+
+    .text-success {
+        color: #92ffd0 !important;
+    }
+
+    .text-info {
+        color: #9cefff !important;
+    }
+
+    .text-warning {
+        color: #ffe3a0 !important;
+    }
+
+    .text-danger {
+        color: #ffb0bf !important;
+    }
+
+    .border-primary {
+        border-color: rgba(206, 255, 0, 0.25) !important;
+    }
+
+    .border-success {
+        border-color: rgba(52, 245, 162, 0.25) !important;
+    }
+
+    .border-info {
+        border-color: rgba(0, 229, 255, 0.25) !important;
+    }
+
+    .border-warning {
+        border-color: rgba(255, 210, 94, 0.25) !important;
+    }
+
+    .border-danger {
+        border-color: rgba(255, 93, 116, 0.25) !important;
+    }
+
+    .bg-light,
+    .card.bg-light,
+    .alert-light,
+    .table-light,
+    .bg-white {
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: #f4f8ff !important;
+    }
+
+    .text-dark {
+        color: #0f1a27 !important;
+    }
+
+    .form-control,
+    .form-select,
+    input[type='text'],
+    input[type='password'],
+    input[type='number'],
+    input[type='email'],
+    textarea {
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: #f4f8ff !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .list-group-item {
+        background: rgba(255, 255, 255, 0.04) !important;
+        color: #f4f8ff !important;
+        border-color: rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .table {
+        color: #f4f8ff !important;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(255, 255, 255, 0.04) !important;
+    }
+
+    .badge.bg-primary,
+    .badge.bg-success,
+    .badge.bg-info,
+    .badge.bg-warning,
+    .badge.bg-danger,
+    .badge.bg-secondary {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .key-frame-img {
+        height: 220px !important;
+        object-fit: cover !important;
+        border-radius: 18px !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .key-frame-overlay {
+        background: linear-gradient(45deg, rgba(0, 229, 255, 0.12), rgba(206, 255, 0, 0.18)) !important;
+    }
+
+    .video-js {
+        border-radius: 24px !important;
+        overflow: hidden !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.52) !important;
+    }
+
+    .video-js .vjs-big-play-button {
+        background: rgba(206, 255, 0, 0.16) !important;
+        color: #ceff00 !important;
+        border: none !important;
+        border-radius: 999px !important;
+        width: 84px !important;
+        height: 84px !important;
+        line-height: 84px !important;
+    }
+
+    .video-js .vjs-control-bar {
+        background: linear-gradient(180deg, transparent, rgba(5, 8, 12, 0.96)) !important;
+    }
+
+    .video-js .vjs-play-progress {
+        background: linear-gradient(90deg, #ceff00, #00e5ff) !important;
+    }
+
+    .image-modal {
+        background: rgba(2, 4, 7, 0.9) !important;
+    }
+</style>
 <div class="analysis-header fade-in">
     <h1 class="h2 mb-3">
         <i class="fas fa-chart-line me-2"></i>

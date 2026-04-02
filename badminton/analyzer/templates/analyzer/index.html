@@ -1,246 +1,448 @@
 {% extends 'analyzer/base.html' %}
 
-{% block title %}Home - Smart Badminton Coach{% endblock %}
+{% block title %}Home - KineticPoseAI Badminton Form Analyzer{% endblock %}
 
 {% block content %}
-<div class="text-center mb-3">
-    <h1 class="display-4 mb-3" style="font-weight: bold; background-color: rgba(157, 88, 92, 0.7); padding: 5px 10px; border-radius: 5px; display: inline-block;">🏸 KineticPoseAI Badminton Form Analyzer</h1>
-    <p class="lead" style="background-color: rgba(157, 88, 92, 0.7); padding: 5px 10px; border-radius: 5px; display: inline-block;">
-        Use AI-powered pose estimation to analyze and improve your badminton techniques
-    </p>
-    <div class="mt-2">
-        <a href="{% url 'analyzer:upload_video' %}" class="btn btn-primary btn-lg">
-            <i class="fas fa-upload me-2"></i> Upload Video
-        </a>
-        <button type="button" class="btn btn-primary btn-lg ms-2" data-bs-toggle="modal" data-bs-target="#tutorialModal">
-            <i class="fas fa-question-circle me-2"></i> View Tutorial
-        </button>
-    </div>
-</div>
+<section class="hero-section mb-4" data-pretext-hero>
+    <div class="hero-grid">
+        <div class="hero-copy">
+            <p class="section-eyebrow mb-3">Athletic Tech / Badminton AI</p>
+            <h1 class="hero-title" data-pretext-hero-title>KineticPoseAI Badminton Form Analyzer</h1>
+            <p class="hero-lead mt-3">
+                Capture a rally, isolate the swing, and get high-speed form feedback built for modern athletes who want sharper mechanics and faster improvement.
+            </p>
 
-<div class="row">
-    <div class="col-md-6">
-        <div class="card mb-2">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">How It Works</h5>
+            <div class="hero-actions">
+                <a href="{% url 'analyzer:upload_video' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-cloud-arrow-up me-2"></i> Upload Video
+                </a>
+                <button type="button" class="btn btn-outline-primary btn-lg" data-bs-toggle="modal" data-bs-target="#tutorialModal">
+                    <i class="fas fa-circle-play me-2"></i> View Tutorial
+                </button>
             </div>
-            <div class="card-body">
-                <ol class="mb-0">
-                    <li class="mb-2">Upload a video of your badminton play</li>
-                    <li class="mb-2">Select the shot type you want to analyze (Smash, Clear, Drop Shot)</li>
-                    <li class="mb-2">Adjust processing options if needed</li>
-                    <li class="mb-2">Our AI analyzes your form using pose estimation</li>
-                    <li>Get detailed feedback on your technique with key frame analysis</li>
-                </ol>
+
+            <div class="hero-pill-row">
+                <span class="hero-pill"><i class="fas fa-bolt text-info"></i> AI pose estimation</span>
+                <span class="hero-pill"><i class="fas fa-video text-success"></i> Key frame breakdown</span>
+                <span class="hero-pill"><i class="fas fa-bullseye text-warning"></i> Shot-aware coaching</span>
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Tips for Best Results</h5>
+        <div class="hero-radar">
+            <div class="hero-radar-stack">
+                <div class="hero-metric">
+                    <div>
+                        <strong>Signal lock</strong>
+                        <span>Motion capture tuned for fast swings</span>
+                    </div>
+                    <div class="value">0.98</div>
+                </div>
+                <div class="hero-metric">
+                    <div>
+                        <strong>Analysis mode</strong>
+                        <span>Smash, clear, and drop shot reads</span>
+                    </div>
+                    <div class="value">LIVE</div>
+                </div>
+                <div class="hero-metric">
+                    <div>
+                        <strong>Delivery</strong>
+                        <span>Designed for mobile use courtside</span>
+                    </div>
+                    <div class="value">FAST</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="row g-4 mt-1">
+    <div class="col-lg-6 d-flex">
+        <section class="card h-100 w-100">
+            <div class="card-header">
+                <p class="section-eyebrow">Workflow</p>
+                <h2 class="h4 mb-0">How It Works</h2>
             </div>
             <div class="card-body">
-                <ul class="mb-0">
-                    <li class="mb-2">Record from a side angle to capture form clearly</li>
-                    <li class="mb-2">Ensure good lighting for better analysis</li>
-                    <li class="mb-2">Keep the player centered in the frame</li>
-                    <li class="mb-2">If possible, use slow-motion footage for more detailed analysis</li>
-                    <li>For long videos, use higher frame skip values to speed up processing</li>
+                <ul class="feature-list">
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 3v12"></path>
+                                <path d="M8 7l4-4 4 4"></path>
+                                <path d="M5 18h14"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Upload a rally clip</h3>
+                            <p>Drop in training footage or a match recording from any recent session.</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="12" cy="12" r="7"></circle>
+                                <path d="M12 5v14"></path>
+                                <path d="M5 12h14"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Select the shot type</h3>
+                            <p>Choose smash, clear, or drop shot so the model evaluates the right mechanics.</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M4 7h16"></path>
+                                <path d="M7 7v10"></path>
+                                <path d="M12 7v10"></path>
+                                <path d="M17 7v10"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Adjust processing depth</h3>
+                            <p>Use the advanced controls when you want faster runs or denser frame sampling.</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M4 12l5 5L20 6"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Analyze pose and timing</h3>
+                            <p>The AI tracks key motion points and extracts readable performance signals.</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 3l2.6 5.4L20 10l-4 3.8.9 5.7L12 16.8 7.1 19.5 8 13.8 4 10l5.4-.6L12 3z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Review the feedback</h3>
+                            <p>Get a cleaner swing story with frames, timing, and coaching notes in one place.</p>
+                        </div>
+                    </li>
                 </ul>
             </div>
-        </div>
-        
+        </section>
     </div>
-    
-    <div class="col-md-6">
-        <div class="card mb-2">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Recent Analyses</h5>
+
+    <div class="col-lg-6 d-flex">
+        <section class="card h-100 w-100">
+            <div class="card-header">
+                <p class="section-eyebrow">Recovery</p>
+                <h2 class="h4 mb-0">Tips for Best Results</h2>
+            </div>
+            <div class="card-body">
+                <ul class="feature-list">
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M4 18l6-10 4 6 2-3 4 7"></path>
+                                <path d="M4 18h16"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Record from the side</h3>
+                            <p>A clean side angle makes the body line and racket path easier to read.</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="12" cy="12" r="7"></circle>
+                                <path d="M12 8v4l3 2"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Use strong lighting</h3>
+                            <p>Good contrast gives the estimator more reliable detail across fast motion.</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M4 12h16"></path>
+                                <path d="M12 4v16"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Keep the player centered</h3>
+                            <p>Centering the action reduces edge cropping and keeps the body in frame.</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M4 7h16"></path>
+                                <path d="M4 12h16"></path>
+                                <path d="M4 17h16"></path>
+                                <path d="M8 5v14"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Try slow motion when possible</h3>
+                            <p>Slower footage helps highlight the contact point and follow-through path.</p>
+                        </div>
+                    </li>
+                    <li class="feature-item">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M5 12h14"></path>
+                                <path d="M12 5v14"></path>
+                                <path d="M7 7l10 10"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Increase frame skip for long clips</h3>
+                            <p>Higher skip values keep processing responsive when the source footage is lengthy.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </section>
+    </div>
+
+    <div class="col-lg-6 d-flex">
+        <section class="card h-100 w-100">
+            <div class="card-header">
+                <p class="section-eyebrow">Insights</p>
+                <h2 class="h4 mb-0">Recent Analyses</h2>
             </div>
             <div class="card-body">
                 {% if recent_analyses %}
-                    <a>Here are the three most recent analyses of the website.</a>
-                    <div class="list-group">
+                    <div class="analysis-list">
                         {% for analysis in recent_analyses %}
-                            <a href="{% url 'analyzer:analysis_detail' analysis.id %}" class="list-group-item list-group-item-action">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1">{{ analysis.title|default:"Analysis" }} #{{ analysis.id }}</h6>
-                                    <small class="text-muted">{{ analysis.created_at|date:"M d, Y" }}</small>
+                            <a href="{% url 'analyzer:analysis_detail' analysis.id %}" class="analysis-entry">
+                                <div class="analysis-thumb {% if analysis.pre_hit_frame %}{% else %}placeholder{% endif %}">
+                                    {% if analysis.pre_hit_frame %}
+                                        <img src="{{ analysis.pre_hit_frame.url }}" alt="{{ analysis.get_shot_type_display }} preview">
+                                    {% else %}
+                                        <div class="h-100 d-flex align-items-center justify-content-center">
+                                            <i class="fas fa-shuttlecock fa-lg text-white"></i>
+                                        </div>
+                                    {% endif %}
                                 </div>
-                                <p class="mb-1">Shot Type: {{ analysis.get_shot_type_display }}</p>
+                                <div class="analysis-content">
+                                    <div class="analysis-meta">
+                                        <h3>{{ analysis.title|default:"Analysis" }} #{{ analysis.id }}</h3>
+                                        <time>{{ analysis.created_at|date:"M d, Y" }}</time>
+                                    </div>
+                                    <div class="analysis-subline">
+                                        <span><span class="label">Shot</span> {{ analysis.get_shot_type_display }}</span>
+                                        {% if analysis.is_analyzed %}
+                                            <span class="status-pill status-pill--success">Completed</span>
+                                        {% else %}
+                                            <span class="status-pill status-pill--warning">Queued</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             </a>
                         {% endfor %}
                     </div>
-                    <div class="text-center mt-3">
-                        <a href="{% url 'analyzer:analysis_history' %}" class="btn btn-outline-primary btn-sm">
-                            View All Analyses
-                        </a>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <a href="{% url 'analyzer:analysis_history' %}" class="btn btn-outline-primary btn-sm">View All Analyses</a>
+                        <a href="{% url 'analyzer:upload_video' %}" class="btn btn-primary btn-sm">Upload New Video</a>
                     </div>
                 {% else %}
                     <div class="text-center py-4">
-                        <p class="text-muted mb-0">No analyses yet. Upload a video to get started!</p>
+                        <div class="hero-pill d-inline-flex mb-3">
+                            <i class="fas fa-video text-info"></i>
+                            No analyses yet
+                        </div>
+                        <p class="mb-3">Upload a video to start your first pose analysis.</p>
+                        <a href="{% url 'analyzer:upload_video' %}" class="btn btn-primary">
+                            <i class="fas fa-cloud-arrow-up me-2"></i> Upload Video
+                        </a>
                     </div>
                 {% endif %}
             </div>
-        </div>
-        
-        
-        <div class="card mt-2">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Supported Shot Types</h5>
+        </section>
+    </div>
+
+    <div class="col-lg-6 d-flex">
+        <section class="card h-100 w-100">
+            <div class="card-header">
+                <p class="section-eyebrow">Shot Library</p>
+                <h2 class="h4 mb-0">Supported Shot Types</h2>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4 text-center mb-3">
-                        <div class="h5">Smash</div>
-                        <p class="small text-muted">Powerful overhead shot</p>
-                    </div>
-                    <div class="col-md-4 text-center mb-3">
-                        <div class="h5">Clear</div>
-                        <p class="small text-muted">High defensive shot</p>
-                    </div>
-                    <div class="col-md-4 text-center mb-3">
-                        <div class="h5">Drop Shot</div>
-                        <p class="small text-muted">Soft deceptive shot</p>
-                    </div>
+                <div class="shot-grid">
+                    <article class="shot-card smash">
+                        <svg class="shot-arc" viewBox="0 0 72 44" aria-hidden="true">
+                            <path d="M6 34C18 10 40 8 66 30"></path>
+                            <circle cx="66" cy="30" r="3.6" fill="currentColor"></circle>
+                        </svg>
+                        <h3 class="shot-name">Smash</h3>
+                        <p class="shot-sub">Powerful overhead pressure shot with explosive downward intent.</p>
+                    </article>
+                    <article class="shot-card clear">
+                        <svg class="shot-arc" viewBox="0 0 72 44" aria-hidden="true">
+                            <path d="M6 34C18 7 42 5 66 27"></path>
+                            <circle cx="66" cy="27" r="3.6" fill="currentColor"></circle>
+                        </svg>
+                        <h3 class="shot-name">Clear</h3>
+                        <p class="shot-sub">A higher defensive shot that pushes the opponent deep to the backcourt.</p>
+                    </article>
+                    <article class="shot-card drop">
+                        <svg class="shot-arc" viewBox="0 0 72 44" aria-hidden="true">
+                            <path d="M6 20C20 18 38 20 58 30"></path>
+                            <circle cx="58" cy="30" r="3.6" fill="currentColor"></circle>
+                        </svg>
+                        <h3 class="shot-name">Drop Shot</h3>
+                        <p class="shot-sub">Soft, deceptive placement designed to fall just over the net.</p>
+                    </article>
                 </div>
             </div>
-        </div>
+        </section>
     </div>
 </div>
 
-<!-- Tutorial Modal -->
-<style>
-    /* Re-added styles specifically for the tutorial modal, using theme colors */
-    #tutorialModal .modal-content {
-        background-color: #FCFFEF; /* Match card background */
-        border: 1px solid #44655F; /* Match card border */
-        color: #000000; /* Default text color for modal body */
-    }
-    #tutorialModal .modal-header {
-        background-color: #44655F; /* Theme primary color */
-        color: #FCFFEF; /* Text color on primary */
-        border-bottom: 1px solid #3a544f; /* Slightly darker border */
-    }
-    #tutorialModal .btn-close {
-        filter: invert(1) grayscale(100%) brightness(200%); /* Keep close button white */
-    }
-    #tutorialModal .accordion-button {
-        /* Style for collapsed accordion button */
-        background-color: #f0f3e6; /* Slightly darker than modal background for contrast */
-        color: #000000;
-    }
-    #tutorialModal .accordion-button:not(.collapsed) {
-        /* Style for expanded accordion button - using theme primary */
-        color: #FCFFEF; /* Text color on primary */
-        background-color: #44655F; /* Theme primary color */
-    }
-    #tutorialModal .accordion-button:focus {
-        box-shadow: 0 0 0 0.25rem rgba(68, 101, 95, 0.5); /* Focus ring matching theme primary */
-        border-color: #44655F;
-    }
-    #tutorialModal .accordion-item {
-        border: 1px solid #dee2e6; /* Standard accordion border */
-        margin-bottom: -1px; /* Prevent double borders */
-    }
-     #tutorialModal .accordion-body {
-        background-color: #FCFFEF; /* Ensure body matches modal background */
-     }
-     #tutorialModal .modal-footer {
-        background-color: #f0f3e6; /* Slightly darker footer background */
-        border-top: 1px solid #dee2e6;
-     }
-</style>
 <div class="modal fade" id="tutorialModal" tabindex="-1" aria-labelledby="tutorialModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="tutorialModalLabel">🏸 Badminton Shot Tutorial</h5>
+                <div>
+                    <p class="section-eyebrow mb-1">Quick Guide</p>
+                    <h2 class="modal-title h4 mb-0" id="tutorialModalLabel">How to use KineticPoseAI</h2>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Here's a quick guide to the basic badminton shots:</p>
-                
-                <div class="accordion" id="shotTutorialAccordion">
-                    <!-- Smash Shot -->
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingSmash">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSmash" aria-expanded="false" aria-controls="collapseSmash">
-                                <strong>💥 Smash Shot</strong>
-                            </button>
-                        </h2>
-                        <div id="collapseSmash" class="accordion-collapse collapse" aria-labelledby="headingSmash" data-bs-parent="#shotTutorialAccordion">
-                            <div class="accordion-body">
-                                <p>The smash is the most powerful offensive shot, hit downwards towards the opponent's court.</p>
-                                <h6>Key Steps:</h6>
-                                <ol>
-                                    <li><strong>Preparation:</strong> Get behind the shuttlecock, turn your body sideways, non-racket arm pointing up.</li>
-                                    <li><strong>Swing:</strong> Raise your racket arm high, elbow bent. Swing forward and upward, contacting the shuttlecock at the highest point possible.</li>
-                                    <li><strong>Contact:</strong> Hit the shuttlecock forcefully downwards, snapping your wrist at the point of impact.</li>
-                                    <li><strong>Follow-through:</strong> Continue the swing downwards across your body.</li>
-                                </ol>
-                                <p><em>Goal:</em> End the rally quickly with an unreturnable shot.</p>
-                                <div class="ratio ratio-16x9 mt-3">
-                                    <iframe src="https://www.youtube.com/embed/DWsHRZFTqtk" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-                                </div>
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="feature-item h-100">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M12 3v12"></path>
+                                    <path d="M8 7l4-4 4 4"></path>
+                                    <path d="M5 18h14"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3>1. Upload the clip</h3>
+                                <p>Choose your badminton footage and select the shot you want analyzed.</p>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Drop Shot -->
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingDrop">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDrop" aria-expanded="false" aria-controls="collapseDrop">
-                                <strong>💧 Drop Shot</strong>
-                            </button>
-                        </h2>
-                        <div id="collapseDrop" class="accordion-collapse collapse" aria-labelledby="headingDrop" data-bs-parent="#shotTutorialAccordion">
-                            <div class="accordion-body">
-                                <p>The drop shot is a soft, deceptive shot that lands just over the net in the opponent's frontcourt.</p>
-                                <h6>Key Steps:</h6>
-                                <ol>
-                                    <li><strong>Preparation:</strong> Similar setup to a smash or clear to deceive the opponent.</li>
-                                    <li><strong>Swing:</strong> Use a slower arm speed compared to a smash. Focus on control rather than power.</li>
-                                    <li><strong>Contact:</strong> Gently tap or slice the shuttlecock, aiming for it to just clear the net and drop sharply.</li>
-                                    <li><strong>Follow-through:</strong> Minimal follow-through to maintain control.</li>
-                                </ol>
-                                <p><em>Goal:</em> Catch the opponent off guard, force them to move forward, or set up another shot.</p>
-                                <div class="ratio ratio-16x9 mt-3">
-                                    <iframe src="https://www.youtube.com/embed/CC0FGFSarhQ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-                                </div>
+                    <div class="col-md-4">
+                        <div class="feature-item h-100">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="7"></circle>
+                                    <path d="M12 5v14"></path>
+                                    <path d="M5 12h14"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3>2. Let the AI scan</h3>
+                                <p>The model tracks motion, key frames, and shot timing in the background.</p>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Clear Shot -->
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingClear">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseClear" aria-expanded="false" aria-controls="collapseClear">
-                                <strong>🚀 Clear Shot</strong>
-                            </button>
-                        </h2>
-                        <div id="collapseClear" class="accordion-collapse collapse" aria-labelledby="headingClear" data-bs-parent="#shotTutorialAccordion">
-                            <div class="accordion-body">
-                                <p>The clear is a defensive shot hit high and deep into the opponent's backcourt.</p>
-                                <h6>Key Steps:</h6>
-                                <ol>
-                                    <li><strong>Preparation:</strong> Get under the shuttlecock, turn sideways.</li>
-                                    <li><strong>Swing:</strong> Swing the racket upwards and forwards, similar to throwing a ball.</li>
-                                    <li><strong>Contact:</strong> Hit the shuttlecock high and in front of your body, aiming for a high trajectory.</li>
-                                    <li><strong>Follow-through:</strong> Follow through fully in the direction of the shot.</li>
-                                </ol>
-                                <p><em>Goal:</em> Create time to recover position, push the opponent back, or reset the rally.</p>
-                                <div class="ratio ratio-16x9 mt-3">
-                                    <iframe src="https://www.youtube.com/embed/xRv1JLg4NMM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-                                </div>
+                    <div class="col-md-4">
+                        <div class="feature-item h-100">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M4 12l5 5L20 6"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3>3. Review the breakdown</h3>
+                                <p>Open the result page to inspect frame captures, timing, and coaching notes.</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
+                <div class="row g-4 mt-1">
+                    <div class="col-lg-7">
+                        <section class="card h-100">
+                            <div class="card-header">
+                                <p class="section-eyebrow">Best practice</p>
+                                <h3 class="h5 mb-0">Quick capture checklist</h3>
+                            </div>
+                            <div class="card-body">
+                                <ul class="feature-list">
+                                    <li class="feature-item">
+                                        <div class="feature-icon">
+                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <path d="M4 18l6-10 4 6 2-3 4 7"></path>
+                                                <path d="M4 18h16"></path>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h3>Side angle</h3>
+                                            <p>Side-on footage makes body alignment and racket path easier to read.</p>
+                                        </div>
+                                    </li>
+                                    <li class="feature-item">
+                                        <div class="feature-icon">
+                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <circle cx="12" cy="12" r="7"></circle>
+                                                <path d="M12 8v4l3 2"></path>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h3>Bright lighting</h3>
+                                            <p>Better contrast gives the estimator cleaner edges on the moving athlete.</p>
+                                        </div>
+                                    </li>
+                                    <li class="feature-item">
+                                        <div class="feature-icon">
+                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <path d="M4 12h16"></path>
+                                                <path d="M12 4v16"></path>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h3>Keep the player centered</h3>
+                                            <p>Center framing reduces clipping and makes the key frame crop more useful.</p>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+                        </section>
+                    </div>
+                    <div class="col-lg-5">
+                        <section class="card h-100">
+                            <div class="card-header">
+                                <p class="section-eyebrow">Shots</p>
+                                <h3 class="h5 mb-0">What the model understands</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-3">
+                                    <div class="mini-pill justify-content-between">
+                                        <span>Smash</span>
+                                        <span class="text-info">Power</span>
+                                    </div>
+                                    <div class="mini-pill justify-content-between">
+                                        <span>Clear</span>
+                                        <span class="text-success">Recovery</span>
+                                    </div>
+                                    <div class="mini-pill justify-content-between">
+                                        <span>Drop Shot</span>
+                                        <span class="text-warning">Deception</span>
+                                    </div>
+                                </div>
+                                <div class="alert alert-info mt-4 mb-0">
+                                    Use the shot type that matches the rally moment for the most relevant feedback.
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="{% url 'analyzer:upload_video' %}" class="btn btn-primary">
+                    <i class="fas fa-cloud-arrow-up me-2"></i> Start Uploading
+                </a>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
