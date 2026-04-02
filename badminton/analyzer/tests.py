@@ -1,8 +1,10 @@
 import unittest
 import os
+from io import BytesIO
 import numpy as np
 import torch
 import math
+import zipfile
 from unittest import mock
 
 # Django testing imports
@@ -15,7 +17,7 @@ from django.conf import settings
 
 # Imports from your application - Use absolute paths from project root
 try:
-    from analyzer.models import VideoAnalysis
+    from analyzer.models import VideoAnalysis, AnalysisJob
     from analyzer.forms import VideoUploadForm, SignUpForm
     from analyzer.services.badminton_pose_estimator import (
         BadmintonVideoTracker,
@@ -520,6 +522,136 @@ class ViewTests(TestCase):
         self.assertEqual(new_analysis.user, self.user_a)
         if os.path.exists(new_analysis.input_video.path):
             new_analysis.delete()
+
+    @mock.patch('analyzer.views.threading.Thread')
+    @mock.patch('analyzer.views.DjangoVideoAnalysisApp')
+    def test_w17_start_analysis_creates_job(self, MockAnalyzerApp, MockThread):
+        self.client.login(username='userA', password='password')
+
+        mock_analyzer = mock.MagicMock()
+        MockAnalyzerApp.return_value = mock_analyzer
+        mock_thread = mock.MagicMock()
+        MockThread.return_value = mock_thread
+
+        start_url = reverse('analyzer:start_analysis', args=[self.analysis_a.id])
+        response = self.client.post(start_url)
+
+        self.assertEqual(response.status_code, 200)
+        job = AnalysisJob.objects.get(analysis=self.analysis_a)
+        self.assertEqual(job.status, AnalysisJob.STATUS_QUEUED)
+        self.assertEqual(job.progress, 0)
+        self.assertEqual(job.message, 'Initializing analysis...')
+        MockAnalyzerApp.assert_called_once()
+        mock_thread.start.assert_called_once()
+
+    def test_w18_analysis_progress_uses_job_state(self):
+        job = AnalysisJob.objects.create(
+            analysis=self.analysis_a,
+            status=AnalysisJob.STATUS_RUNNING,
+            progress=42,
+            message='Processing frame 42',
+        )
+
+        progress_url = reverse('analyzer:analysis_progress', args=[self.analysis_a.id])
+        response = self.client.get(progress_url)
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['status'], 'running')
+        self.assertEqual(payload['progress'], 42)
+        self.assertEqual(payload['message'], 'Processing frame 42')
+
+    def test_w19_analysis_progress_reports_canceling_state(self):
+        AnalysisJob.objects.create(
+            analysis=self.analysis_a,
+            status=AnalysisJob.STATUS_RUNNING,
+            progress=63,
+            message='Cancellation requested. Stopping analysis...',
+            cancel_requested=True,
+        )
+
+        progress_url = reverse('analyzer:analysis_progress', args=[self.analysis_a.id])
+        response = self.client.get(progress_url)
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['status'], 'canceling')
+        self.assertEqual(payload['progress'], 63)
+        self.assertEqual(payload['message'], 'Cancellation requested. Stopping analysis...')
+
+    def test_w20_stop_analysis_sets_cancel_request(self):
+        AnalysisJob.objects.create(
+            analysis=self.analysis_a,
+            status=AnalysisJob.STATUS_RUNNING,
+            progress=55,
+            message='Processing frame 55',
+        )
+
+        stop_url = reverse('analyzer:stop_analysis', args=[self.analysis_a.id])
+        response = self.client.post(stop_url)
+
+        self.assertEqual(response.status_code, 200)
+        job = AnalysisJob.objects.get(analysis=self.analysis_a)
+        self.assertTrue(job.cancel_requested)
+        self.assertEqual(job.message, 'Cancellation requested. Stopping analysis...')
+        self.assertEqual(response.json()['status'], 'canceling')
+
+    def test_w21_download_analysis_returns_video(self):
+        analysis = VideoAnalysis.objects.create(
+            user=self.user_a,
+            input_video=SimpleUploadedFile('source.mp4', b'source-bytes', 'video/mp4'),
+            output_video=SimpleUploadedFile('result.mp4', b'video-bytes', 'video/mp4'),
+            shot_type='smash',
+            is_analyzed=True,
+        )
+        self.addCleanup(analysis.delete)
+
+        download_url = reverse('analyzer:download_analysis', args=[analysis.id])
+        response = self.client.get(download_url)
+        stored_name = f'analysis_{analysis.id}_video.mp4'
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.streaming)
+        self.assertIn('attachment', response['Content-Disposition'])
+        self.assertIn(stored_name, response['Content-Disposition'])
+        content = b''.join(response.streaming_content)
+        self.assertEqual(content, b'video-bytes')
+        response.close()
+
+    def test_w22_download_analysis_images_returns_zip(self):
+        analysis = VideoAnalysis.objects.create(
+            user=self.user_a,
+            input_video=SimpleUploadedFile('source.mp4', b'source-bytes', 'video/mp4'),
+            pre_hit_frame=SimpleUploadedFile('pre.jpg', b'pre-image', 'image/jpeg'),
+            hit_frame=SimpleUploadedFile('hit.jpg', b'hit-image', 'image/jpeg'),
+            follow_through_frame=SimpleUploadedFile('follow.jpg', b'follow-image', 'image/jpeg'),
+            shot_type='smash',
+            is_analyzed=True,
+        )
+        self.addCleanup(analysis.delete)
+
+        download_url = reverse('analyzer:download_analysis_images', args=[analysis.id])
+        response = self.client.get(download_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/zip')
+        self.assertIn(f'analysis_{analysis.id}_frames.zip', response['Content-Disposition'])
+
+        archive = zipfile.ZipFile(BytesIO(response.content), 'r')
+        try:
+            self.assertCountEqual(
+                archive.namelist(),
+                [
+                    f'analysis_{analysis.id}_pre_hit.jpg',
+                    f'analysis_{analysis.id}_hit.jpg',
+                    f'analysis_{analysis.id}_follow_through.jpg',
+                ],
+            )
+            self.assertEqual(archive.read(f'analysis_{analysis.id}_pre_hit.jpg'), b'pre-image')
+            self.assertEqual(archive.read(f'analysis_{analysis.id}_hit.jpg'), b'hit-image')
+            self.assertEqual(archive.read(f'analysis_{analysis.id}_follow_through.jpg'), b'follow-image')
+        finally:
+            archive.close()
 
 class ModelTests(TestCase):
     def setUp(self):

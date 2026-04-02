@@ -20,6 +20,7 @@ urlpatterns = [
     
     # Download endpoints
     path('download/<int:analysis_id>/', views.download_analysis, name='download_analysis'),
+    path('download-images/<int:analysis_id>/', views.download_analysis_images, name='download_analysis_images'),
 
     # Action endpoints
     path('delete/<int:analysis_id>/', views.delete_analysis, name='delete_analysis'),

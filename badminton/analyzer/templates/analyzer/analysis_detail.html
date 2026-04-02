@@ -1,60 +1,460 @@
 {% extends 'analyzer/base.html' %}
+{% load analyzer_filters %}
 
 {% block title %}Analysis #{{ analysis.id }} - Smart Badminton Coach{% endblock %}
 
 {% block extra_css %}
-<!-- Plyr.js CSS -->
-<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
+<!-- Video.js CSS -->
+<link href="https://vjs.zencdn.net/8.13.0/video-js.css" rel="stylesheet">
 <style>
-    .plyr {
-        border-radius: 0.25rem;
+    /* Custom animations and transitions */
+    .card {
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+    
+    .key-frame-img {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        border-radius: 0.375rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .key-frame-img:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    .key-frame-container {
+        position: relative;
         overflow: hidden;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-radius: 0.375rem;
     }
     
-    .plyr--full-ui input[type=range] {
-        color: #0d6efd; /* Bootstrap primary color */
+    .key-frame-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, rgba(68, 101, 95, 0.8), rgba(68, 101, 95, 0.6));
+        opacity: 0;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
     }
     
-    .plyr__control--overlaid {
-        background: rgba(13, 110, 253, 0.8); /* Bootstrap primary with opacity */
+    .key-frame-container:hover .key-frame-overlay {
+        opacity: 1;
     }
     
-    .plyr--video .plyr__control:hover {
-        background: #0d6efd;
+    /* Video.js custom styling */
+    .video-js {
+        border-radius: 0.375rem;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .video-js .vjs-big-play-button {
+        background: rgba(68, 101, 95, 0.8);
+        border: none;
+        border-radius: 50%;
+        width: 80px;
+        height: 80px;
+        line-height: 80px;
+        font-size: 24px;
+        transition: all 0.3s ease;
+    }
+    
+    .video-js .vjs-big-play-button:hover {
+        background: #44655F;
+        transform: scale(1.1);
+    }
+    
+    .video-js .vjs-control-bar {
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+        backdrop-filter: blur(10px);
+    }
+    
+    .video-js .vjs-play-control:hover,
+    .video-js .vjs-volume-menu-button:hover,
+    .video-js .vjs-fullscreen-control:hover {
+        color: #44655F;
+    }
+    
+    .video-js .vjs-progress-control .vjs-progress-holder {
+        background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .video-js .vjs-progress-control .vjs-play-progress {
+        background: #44655F;
+    }
+    
+    .video-js .vjs-progress-control .vjs-load-progress {
+        background: rgba(68, 101, 95, 0.3);
+    }
+    
+    /* Custom video controls styling */
+    .video-controls .btn-group .btn {
+        border-radius: 0;
+        border-width: 1px;
+    }
+    
+    .video-controls .btn-group .btn:first-child {
+        border-top-left-radius: 0.25rem;
+        border-bottom-left-radius: 0.25rem;
+    }
+    
+    .video-controls .btn-group .btn:last-child {
+        border-top-right-radius: 0.25rem;
+        border-bottom-right-radius: 0.25rem;
+    }
+    
+    .video-controls .card {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .video-controls .card-title {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+    
+    /* Loop button states */
+    .loop-active {
+        background-color: #44655F !important;
+        border-color: #44655F !important;
+        color: white !important;
+    }
+    
+    /* Animated progress bars */
+    .progress-bar {
+        transition: width 0.3s ease;
+    }
+    
+    .progress-bar-animated {
+        animation: progress-bar-stripes 1s linear infinite;
+    }
+    
+    @keyframes progress-bar-stripes {
+        0% {
+            background-position: 1rem 0;
+        }
+        100% {
+            background-position: 0 0;
+        }
+    }
+    
+    /* Button animations */
+    .btn {
+        transition: all 0.3s ease;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Table hover effects */
+    .table-hover tbody tr:hover {
+        background-color: rgba(68, 101, 95, 0.1);
+        transform: scale(1.01);
+        transition: all 0.2s ease;
+    }
+    
+    /* Fade in animations */
+    .fade-in {
+        animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Loading spinner */
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #44655F;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    /* Pulse animation for important elements */
+    .pulse {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    /* Modal overlay for full-screen image viewing */
+    .image-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .image-modal.active {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .image-modal img {
+        max-width: 90%;
+        max-height: 90%;
+        border-radius: 0.375rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+    
+    .image-modal-close {
+        position: absolute;
+        top: 20px;
+        right: 30px;
+        color: white;
+        font-size: 40px;
+        cursor: pointer;
+        transition: color 0.3s ease;
+    }
+    
+    .image-modal-close:hover {
+        color: #44655F;
+    }
+    
+    /* Header background for better readability */
+    .analysis-header {
+        background: rgba(252, 255, 240, 0.2);
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .analysis-header h1 {
+        margin-bottom: 1rem;
+        color: #ffffff;
+    }
+    
+    .analysis-header .text-muted {
+        color: #c0c0c0 !important;
+    }
+    
+    /* Bootstrap class overrides for custom color */
+    .bg-success {
+        background-color: #44655F !important;
+    }
+    
+    .btn-success {
+        background-color: #44655F !important;
+        border-color: #44655F !important;
+    }
+    
+    .btn-success:hover {
+        background-color: #3a5953 !important;
+        border-color: #3a5953 !important;
+    }
+    
+    .btn-success:active, .btn-success.active {
+        background-color: #325049 !important;
+        border-color: #325049 !important;
+    }
+    
+    .progress-bar.bg-success {
+        background-color: #44655F !important;
+    }
+    
+    .card-header.bg-success {
+        background-color: #44655F !important;
+    }
+    
+    .badge.bg-success {
+        background-color: #44655F !important;
+    }
+    
+    .text-success {
+        color: #44655F !important;
+    }
+    
+    .border-success {
+        border-color: #44655F !important;
+    }
+    
+    .btn-outline-success {
+        color: #44655F !important;
+        border-color: #44655F !important;
+    }
+    
+    .btn-outline-success:hover {
+        background-color: #44655F !important;
+        border-color: #44655F !important;
+    }
+    
+    .alert-success {
+        background-color: rgba(68, 101, 95, 0.1) !important;
+        border-color: #44655F !important;
+        color: #44655F !important;
+    }
+    
+    .btn-primary {
+        background-color: #44655F !important;
+        border-color: #44655F !important;
+    }
+    
+    .btn-primary:hover {
+        background-color: #3a5953 !important;
+        border-color: #3a5953 !important;
+    }
+    
+    .btn-primary:active, .btn-primary.active {
+        background-color: #325049 !important;
+        border-color: #325049 !important;
+    }
+    
+    .btn-outline-primary {
+        color: #44655F !important;
+        border-color: #44655F !important;
+    }
+    
+    .btn-outline-primary:hover {
+        background-color: #44655F !important;
+        border-color: #44655F !important;
+    }
+    
+    .card-header.bg-primary {
+        background-color: #44655F !important;
+    }
+    
+    .badge.bg-primary {
+        background-color: #44655F !important;
+    }
+    
+    .text-primary {
+        color: #44655F !important;
+    }
+    
+    .border-primary {
+        border-color: #44655F !important;
+    }
+    
+    /* Fix for outline buttons to maintain proper styling */
+    .btn-outline-success:not(:hover):not(:focus):not(:active) {
+        background-color: transparent !important;
+        color: #44655F !important;
+    }
+    
+    .btn-outline-primary:not(:hover):not(:focus):not(:active) {
+        background-color: transparent !important;
+        color: #44655F !important;
+    }
+    
+    /* Prevent navbar from being affected by color overrides */
+    .navbar .navbar-brand,
+    .navbar .nav-link {
+        color: rgba(255, 255, 255, 0.9) !important;
+    }
+    
+    .navbar .nav-link:hover {
+        color: white !important;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="mb-4">
+<div class="analysis-header fade-in">
     <h1 class="h2 mb-3">
         <i class="fas fa-chart-line me-2"></i>
         {{ analysis.title|default:"Analysis" }} #{{ analysis.id }}
+        {% if analysis.is_analyzed %}
+            <span class="badge bg-success ms-2">
+                <i class="fas fa-check-circle me-1"></i>Complete
+            </span>
+        {% elif is_running %}
+            <span class="badge bg-warning ms-2 pulse">
+                <i class="fas fa-spinner fa-spin me-1"></i>Processing
+            </span>
+        {% else %}
+            <span class="badge bg-secondary ms-2">
+                <i class="fas fa-clock me-1"></i>Pending
+            </span>
+        {% endif %}
     </h1>
-    <p class="text-muted">
-        <i class="far fa-calendar-alt me-2"></i>
-        {{ analysis.created_at|date:"F d, Y, g:i a" }}
-        <span class="ms-3">
-            <i class="fas fa-crosshairs me-2"></i>
-            Shot Type: {{ analysis.get_shot_type_display }}
-        </span>
-    </p>
+    <div class="row">
+        <div class="col-md-8">
+            <p class="text-muted mb-0">
+                <i class="far fa-calendar-alt me-2"></i>
+                {{ analysis.created_at|date:"F d, Y, g:i a" }}
+                <span class="ms-3">
+                    <i class="fas fa-crosshairs me-2"></i>
+                    Shot Type: <span class="badge bg-success">{{ analysis.get_shot_type_display }}</span>
+                </span>
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            {% if analysis.is_analyzed %}
+                {% if analysis.pre_hit_frame or analysis.hit_frame or analysis.follow_through_frame %}
+                    <button class="btn btn-sm btn-outline-primary" onclick="downloadImages()">
+                        <i class="fas fa-images me-1"></i>Download Images
+                    </button>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
 </div>
 
-<div id="analysisProgress" class="card mb-4" {% if not is_running %}style="display: none;"{% endif %}>
-    <div class="card-header bg-primary text-white">
-        <h3 class="h5 mb-0">Analysis in Progress</h3>
+<!-- Image Modal -->
+<div class="image-modal" id="imageModal">
+    <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
+    <img id="modalImage" src="" alt="Full Size View">
+</div>
+
+<div id="analysisProgress" class="card mb-4 fade-in" {% if not is_running %}style="display: none;"{% endif %}>
+    <div class="card-header bg-success text-white">
+        <h3 class="h5 mb-0">
+            <i class="fas fa-cog fa-spin me-2"></i>Analysis in Progress
+        </h3>
     </div>
     <div class="card-body">
-        <div class="progress mb-3">
-            <div class="progress-bar progress-bar-striped progress-bar-animated"
+        <div class="progress mb-3" style="height: 25px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated bg-success"
                  role="progressbar" style="width: 0%">
-                0%
+                <span class="fw-bold">0%</span>
             </div>
         </div>
         <div id="statusMessage" class="text-center mb-3">
-            Initializing analysis...
+            <div class="spinner mb-2"></div>
+            <p class="mb-0">Initializing analysis...</p>
         </div>
         <div class="text-center">
             <button id="stopAnalysisBtn" class="btn btn-danger">
@@ -71,7 +471,7 @@
                 <div class="card-body text-center py-5">
                     <h3 class="h5 mb-3">Analysis Not Started</h3>
                     <p class="mb-4">This video has not been analyzed yet.</p>
-                    <button id="startAnalysisBtn" class="btn btn-primary">
+                    <button id="startAnalysisBtn" class="btn btn-success">
                         <i class="fas fa-play me-2"></i>Start Analysis
                     </button>
                 </div>
@@ -79,44 +479,82 @@
         </div>
     {% elif analysis.is_analyzed %}
         <div class="col-md-8">
-            <div class="card mb-4">
+            <div class="card mb-4 fade-in">
                 <div class="card-header bg-primary text-white">
-                    <h3 class="h5 mb-0">Key Frames</h3>
+                    <h3 class="h5 mb-0">
+                        <i class="fas fa-images me-2"></i>Key Frames
+                    </h3>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-4">
-                            <div class="key-frame-container text-center">
-                                <h4 class="h6 mb-2">Pre-Hit Form</h4>
+                            <div class="key-frame-container text-center mb-3">
+                                <h4 class="h6 mb-2">
+                                    <i class="fas fa-arrow-left me-1"></i>Pre-Hit Form
+                                </h4>
                                 {% if analysis.pre_hit_frame %}
-                                    <img src="{{ analysis.pre_hit_frame.url }}" alt="Pre-hit Form" class="key-frame-img">
+                                    <div class="position-relative" onclick="openImageModal('{{ analysis.pre_hit_frame.url }}', 'Pre-hit Form')" style="cursor: pointer;">
+                                        <img src="{{ analysis.pre_hit_frame.url }}" 
+                                             alt="Pre-hit Form" 
+                                             class="key-frame-img">
+                                        <div class="key-frame-overlay">
+                                            <i class="fas fa-search-plus fa-2x"></i>
+                                        </div>
+                                    </div>
                                 {% else %}
                                     <div class="key-frame-img d-flex align-items-center justify-content-center bg-light">
-                                        <span class="text-muted">No frame detected</span>
+                                        <div class="text-center">
+                                            <i class="fas fa-image fa-2x text-muted mb-2"></i>
+                                            <p class="text-muted mb-0">No frame detected</p>
+                                        </div>
                                     </div>
                                 {% endif %}
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="key-frame-container text-center">
-                                <h4 class="h6 mb-2">Hit Moment</h4>
+                            <div class="key-frame-container text-center mb-3">
+                                <h4 class="h6 mb-2">
+                                    <i class="fas fa-bullseye me-1"></i>Hit Moment
+                                </h4>
                                 {% if analysis.hit_frame %}
-                                    <img src="{{ analysis.hit_frame.url }}" alt="Hit Moment" class="key-frame-img">
+                                    <div class="position-relative" onclick="openImageModal('{{ analysis.hit_frame.url }}', 'Hit Moment')" style="cursor: pointer;">
+                                        <img src="{{ analysis.hit_frame.url }}" 
+                                             alt="Hit Moment" 
+                                             class="key-frame-img">
+                                        <div class="key-frame-overlay">
+                                            <i class="fas fa-search-plus fa-2x"></i>
+                                        </div>
+                                    </div>
                                 {% else %}
                                     <div class="key-frame-img d-flex align-items-center justify-content-center bg-light">
-                                        <span class="text-muted">No frame detected</span>
+                                        <div class="text-center">
+                                            <i class="fas fa-image fa-2x text-muted mb-2"></i>
+                                            <p class="text-muted mb-0">No frame detected</p>
+                                        </div>
                                     </div>
                                 {% endif %}
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="key-frame-container text-center">
-                                <h4 class="h6 mb-2">Follow-Through</h4>
+                            <div class="key-frame-container text-center mb-3">
+                                <h4 class="h6 mb-2">
+                                    <i class="fas fa-arrow-right me-1"></i>Follow-Through
+                                </h4>
                                 {% if analysis.follow_through_frame %}
-                                    <img src="{{ analysis.follow_through_frame.url }}" alt="Follow-Through" class="key-frame-img">
+                                    <div class="position-relative" onclick="openImageModal('{{ analysis.follow_through_frame.url }}', 'Follow-Through')" style="cursor: pointer;">
+                                        <img src="{{ analysis.follow_through_frame.url }}" 
+                                             alt="Follow-Through" 
+                                             class="key-frame-img">
+                                        <div class="key-frame-overlay">
+                                            <i class="fas fa-search-plus fa-2x"></i>
+                                        </div>
+                                    </div>
                                 {% else %}
                                     <div class="key-frame-img d-flex align-items-center justify-content-center bg-light">
-                                        <span class="text-muted">No frame detected</span>
+                                        <div class="text-center">
+                                            <i class="fas fa-image fa-2x text-muted mb-2"></i>
+                                            <p class="text-muted mb-0">No frame detected</p>
+                                        </div>
                                     </div>
                                 {% endif %}
                             </div>
@@ -126,21 +564,112 @@
             </div>
 
             {% if analysis.output_video %}
-                <div class="card mb-4">
+                <div class="card mb-4 fade-in">
                     <div class="card-header bg-primary text-white">
-                        <h3 class="h5 mb-0">Analyzed Video</h3>
+                        <h3 class="h5 mb-0">
+                            <i class="fas fa-video me-2"></i>Analyzed Video
+                        </h3>
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                           <!-- Regular MP4 Video Player -->
-                           <video class="plyr-video" playsinline controls {% if analysis.pre_hit_frame %}data-poster="{{ analysis.pre_hit_frame.url }}"{% endif %}>
-                               <source src="{{ analysis.output_video.url }}" type="video/mp4">
-                           </video>
+                            <!-- Video.js Player -->
+                            <video id="analysis-video" 
+                                   class="video-js vjs-default-skin" 
+                                   controls 
+                                   preload="auto" 
+                                   width="100%" 
+                                   height="400"
+                                   {% if analysis.pre_hit_frame %}poster="{{ analysis.pre_hit_frame.url }}"{% endif %}
+                                   data-setup='{"responsive": true, "fluid": true}'>
+                                <source src="{{ analysis.output_video.url }}" type="video/mp4">
+                                <p class="vjs-no-js">
+                                    To view this video please enable JavaScript, and consider upgrading to a web browser that
+                                    <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>.
+                                </p>
+                            </video>
+                            
+                            <!-- Custom Video Controls -->
+                            <div class="video-controls mt-3">
+                                <div class="row">
+                                    <div class="col-md-9">
+                                        <div class="card bg-light">
+                                            <div class="card-body p-2">
+                                                <h6 class="card-title mb-2">
+                                                    <i class="fas fa-tachometer-alt me-1"></i>Playback Speed
+                                                </h6>
+                                                <div class="btn-group w-100" role="group">
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="setPlaybackSpeed(0.125)">0.125x</button>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="setPlaybackSpeed(0.25)">0.25x</button>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="setPlaybackSpeed(0.5)">0.5x</button>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="setPlaybackSpeed(0.75)">0.75x</button>
+                                                    <button type="button" class="btn btn-sm btn-primary" onclick="setPlaybackSpeed(1)" id="speed-1">1x</button>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="setPlaybackSpeed(1.5)">1.5x</button>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="setPlaybackSpeed(2)">2x</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body p-2">
+                                                <h6 class="card-title mb-2">
+                                                    <i class="fas fa-sync-alt me-1"></i>Loop Control
+                                                </h6>
+                                                <div class="d-grid">
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleLoop()" id="loop-btn">
+                                                        <i class="fas fa-sync-alt me-1"></i>Loop: OFF
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="text-center">
-                            <a href="{% url 'analyzer:download_analysis' analysis.id %}" class="btn btn-outline-primary">
-                                <i class="fas fa-download me-2"></i>Download Video
-                            </a>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="d-grid">
+                                    <button class="btn btn-outline-primary" onclick="downloadVideo()">
+                                        <i class="fas fa-download me-2"></i>Download Video
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-grid">
+                                    <button class="btn btn-outline-primary" onclick="shareVideo()">
+                                        <i class="fas fa-share-alt me-2"></i>Share Analysis
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Configuration moved under video -->
+                <div class="card mb-4 fade-in">
+                    <div class="card-header bg-secondary text-white">
+                        <h3 class="h5 mb-0">
+                            <i class="fas fa-cog me-2"></i>Processing Configuration
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <i class="fas fa-step-forward fa-2x text-primary mb-2"></i>
+                                    <h6 class="mb-1">Frame Skip</h6>
+                                    <span class="badge bg-primary">{{ analysis.process_interval }}</span>
+                                    <small class="d-block text-muted mt-1">Every {{ analysis.process_interval }} frame</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <i class="fas fa-film fa-2x text-success mb-2"></i>
+                                    <h6 class="mb-1">Source FPS</h6>
+                                    <span class="badge bg-success">{{ analysis.source_fps|default:"Auto" }}</span>
+                                    <small class="d-block text-muted mt-1">{% if analysis.source_fps %}{{ analysis.source_fps }} fps{% else %}Auto-detected{% endif %}</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -149,41 +678,61 @@
 
         <div class="col-md-4">
             {% if analysis.analysis_summary %}
-                <div class="card mb-4">
+                <div class="card mb-4 fade-in">
                     <div class="card-header bg-primary text-white">
-                        <h3 class="h5 mb-0">Analysis Summary</h3>
+                        <h3 class="h5 mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>Analysis Summary
+                        </h3>
                     </div>
                     <div class="card-body">
                         {% if analysis.analysis_summary.status == 'complete' %}
                             <div class="mb-3">
-                                <h4 class="h6">Shot Type</h4>
-                                <p>{{ analysis.get_shot_type_display }}</p>
+                                <h4 class="h6">
+                                    <i class="fas fa-crosshairs me-1"></i>Shot Type
+                                </h4>
+                                <span class="badge bg-primary fs-6">{{ analysis.get_shot_type_display }}</span>
                             </div>
                             
                             <div class="mb-3">
-                                <h4 class="h6">Timing Analysis</h4>
-                                <table class="table table-sm">
-                                    <tbody>
-                                        <tr>
-                                            <td>Preparation Time:</td>
-                                            <td>{{ analysis.analysis_summary.timing.preparation_time|floatformat:3 }}s</td>
-                                        </tr>
-                                        <tr>
-                                            <td>Follow Through Time:</td>
-                                            <td>{{ analysis.analysis_summary.timing.follow_through_time|floatformat:3 }}s</td>
-                                        </tr>
-                                        <tr>
-                                            <td>Total Shot Duration:</td>
-                                            <td>
-                                                {{ analysis.analysis_summary.timing.preparation_time|add:analysis.analysis_summary.timing.follow_through_time|floatformat:3 }}s
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                <h4 class="h6">
+                                    <i class="fas fa-stopwatch me-1"></i>Timing Analysis
+                                </h4>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover">
+                                        <tbody>
+                                            <tr>
+                                                <td>
+                                                    <i class="fas fa-clock text-primary me-1"></i>
+                                                    Preparation Time:
+                                                </td>
+                                                <td class="fw-bold">{{ analysis.analysis_summary.timing.preparation_time|floatformat:3 }}s</td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <i class="fas fa-clock text-success me-1"></i>
+                                                    Follow Through Time:
+                                                </td>
+                                                <td class="fw-bold">{{ analysis.analysis_summary.timing.follow_through_time|floatformat:3 }}s</td>
+                                            </tr>
+                                            <tr class="table-primary">
+                                                <td>
+                                                    <i class="fas fa-clock text-info me-1"></i>
+                                                    Total Shot Duration:
+                                                </td>
+                                                <td class="fw-bold">
+                                                    {{ analysis.analysis_summary.timing.preparation_time|add_floats:analysis.analysis_summary.timing.follow_through_time|floatformat:3 }}s
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         {% else %}
                             <div class="alert alert-warning">
-                                <h4 class="alert-heading h6">Incomplete Analysis</h4>
+                                <h4 class="alert-heading h6">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    Incomplete Analysis
+                                </h4>
                                 <p class="mb-0">{{ analysis.analysis_summary.message }}</p>
                             </div>
                         {% endif %}
@@ -193,53 +742,106 @@
 
             {% comment %} New Angle Analysis Section {% endcomment %}
             {% if analysis.analysis_summary and analysis.analysis_summary.angles and analysis.analysis_summary.ideal_angles %}
-            <div class="card mb-4">
-                <div class="card-header bg-info text-white"> {# Changed color for distinction #}
-                    <h3 class="h5 mb-0">Angle Analysis</h3>
+            <div class="card mb-4 fade-in">
+                <div class="card-header bg-info text-white">
+                    <h3 class="h5 mb-0">
+                        <i class="fas fa-ruler-combined me-2"></i>Angle Analysis
+                    </h3>
                 </div>
                 <div class="card-body">
-                    <table class="table table-sm table-hover">
-                        <thead>
-                            <tr>
-                                <th>Phase</th>
-                                <th>Your Angle</th>
-                                <th>Ideal Angle</th>
-                                <th>Difference</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {# Pre-Hit Row - Use pre-calculated difference #}
-                            {% with diff=analysis.analysis_summary.angle_differences.pre_hit %}
-                            <tr class="{% if diff is not None and diff != 0 %}table-warning fw-bold{% endif %}"> {# Highlight pre-hit row #}
-                                <td class="fw-bold">Pre-Hit</td>
-                                <td>{{ analysis.analysis_summary.angles.pre_hit|default_if_none:"N/A"|floatformat:1 }}°</td>
-                                <td>{{ analysis.analysis_summary.ideal_angles.pre_hit|default_if_none:"N/A"|floatformat:1 }}°</td>
-                                <td>{{ diff|default_if_none:"N/A"|floatformat:1 }}°</td>
-                            </tr>
-                            {% endwith %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>
+                                        <i class="fas fa-play-circle me-1"></i>Phase
+                                    </th>
+                                    <th>
+                                        <i class="fas fa-user me-1"></i>Your Angle
+                                    </th>
+                                    <th>
+                                        <i class="fas fa-bullseye me-1"></i>Ideal Angle
+                                    </th>
+                                    <th>
+                                        <i class="fas fa-balance-scale me-1"></i>Difference
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {# Pre-Hit Row - Use pre-calculated difference #}
+                                {% with diff=analysis.analysis_summary.angle_differences.pre_hit %}
+                                <tr class="{% if diff is not None and diff != 0 %}table-warning fw-bold{% endif %}">
+                                    <td class="fw-bold">
+                                        <i class="fas fa-arrow-left text-primary me-1"></i>
+                                        Pre-Hit
+                                    </td>
+                                    <td>{{ analysis.analysis_summary.angles.pre_hit|default_if_none:"N/A"|floatformat:1 }}°</td>
+                                    <td>{{ analysis.analysis_summary.ideal_angles.pre_hit|default_if_none:"N/A"|floatformat:1 }}°</td>
+                                    <td>
+                                        {% if diff is not None %}
+                                            <span class="badge {% if diff == 0 %}bg-success{% elif diff <= 5 and diff >= -5 %}bg-warning{% else %}bg-danger{% endif %}">
+                                                {{ diff|floatformat:1 }}°
+                                            </span>
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endwith %}
 
-                            {# Hit Row - Use pre-calculated difference #}
-                            {% with diff=analysis.analysis_summary.angle_differences.hit %}
-                            <tr>
-                                <td>Hit</td>
-                                <td>{{ analysis.analysis_summary.angles.hit|default_if_none:"N/A"|floatformat:1 }}°</td>
-                                <td>{{ analysis.analysis_summary.ideal_angles.hit|default_if_none:"N/A"|floatformat:1 }}°</td>
-                                <td>{{ diff|default_if_none:"N/A"|floatformat:1 }}°</td>
-                            </tr>
-                            {% endwith %}
+                                {# Hit Row - Use pre-calculated difference #}
+                                {% with diff=analysis.analysis_summary.angle_differences.hit %}
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-bullseye text-success me-1"></i>
+                                        Hit
+                                    </td>
+                                    <td>{{ analysis.analysis_summary.angles.hit|default_if_none:"N/A"|floatformat:1 }}°</td>
+                                    <td>{{ analysis.analysis_summary.ideal_angles.hit|default_if_none:"N/A"|floatformat:1 }}°</td>
+                                    <td>
+                                        {% if diff is not None %}
+                                            <span class="badge {% if diff == 0 %}bg-success{% elif diff <= 5 and diff >= -5 %}bg-warning{% else %}bg-danger{% endif %}">
+                                                {{ diff|floatformat:1 }}°
+                                            </span>
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endwith %}
 
-                            {# Follow-Through Row - Use pre-calculated difference #}
-                            {% with diff=analysis.analysis_summary.angle_differences.follow_through %}
-                            <tr>
-                                <td>Follow-Through</td>
-                                <td>{{ analysis.analysis_summary.angles.follow_through|default_if_none:"N/A"|floatformat:1 }}°</td>
-                                <td>{{ analysis.analysis_summary.ideal_angles.follow_through|default_if_none:"N/A"|floatformat:1 }}°</td>
-                                <td>{{ diff|default_if_none:"N/A"|floatformat:1 }}°</td>
-                            </tr>
-                            {% endwith %}
-                        </tbody>
-                    </table>
-                    <small class="text-muted">Angles represent key joint configurations. Differences indicate deviation from the ideal form.</small>
+                                {# Follow-Through Row - Use pre-calculated difference #}
+                                {% with diff=analysis.analysis_summary.angle_differences.follow_through %}
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-arrow-right text-info me-1"></i>
+                                        Follow-Through
+                                    </td>
+                                    <td>{{ analysis.analysis_summary.angles.follow_through|default_if_none:"N/A"|floatformat:1 }}°</td>
+                                    <td>{{ analysis.analysis_summary.ideal_angles.follow_through|default_if_none:"N/A"|floatformat:1 }}°</td>
+                                    <td>
+                                        {% if diff is not None %}
+                                            <span class="badge {% if diff == 0 %}bg-success{% elif diff <= 5 and diff >= -5 %}bg-warning{% else %}bg-danger{% endif %}">
+                                                {{ diff|floatformat:1 }}°
+                                            </span>
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endwith %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="alert alert-info">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Angles represent key joint configurations. 
+                            <span class="badge bg-success">Perfect</span>
+                            <span class="badge bg-warning">Good (≤5°)</span>
+                            <span class="badge bg-danger">Needs Work (>5°)</span>
+                        </small>
+                    </div>
                 </div>
             </div>
             {% endif %}
@@ -247,78 +849,410 @@
 
             {% comment %} New AI Feedback Section {% endcomment %}
             {% if analysis.analysis_summary and analysis.analysis_summary.ai_feedback %}
-            <div class="card mb-4">
+            <div class="card mb-4 fade-in">
                 <div class="card-header bg-success text-white">
-                    <h3 class="h5 mb-0">AI Coaching Feedback</h3>
+                    <h3 class="h5 mb-0">
+                        <i class="fas fa-robot me-2"></i>AI Coaching Feedback
+                    </h3>
                 </div>
                 <div class="card-body">
-                    <p>{{ analysis.analysis_summary.ai_feedback|linebreaksbr }}</p>
+                    <div class="alert alert-light border-start border-success border-4">
+                        <p class="mb-0">{{ analysis.analysis_summary.ai_feedback|linebreaksbr }}</p>
+                    </div>
+                    <div class="text-center">
+                        <button class="btn btn-sm btn-outline-success" onclick="speakFeedback()">
+                            <i class="fas fa-volume-up me-1"></i>Listen to Feedback
+                        </button>
+                    </div>
                 </div>
             </div>
             {% endif %}
             {% comment %} End New AI Feedback Section {% endcomment %}
-
-            <div class="card mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h3 class="h5 mb-0">Configuration</h3>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <h4 class="h6">Processing Settings</h4>
-                        <ul class="list-unstyled">
-                            <li>
-                                <strong>Frame Skip Interval:</strong> {{ analysis.process_interval }}
-                                <small class="text-muted">(Every {{ analysis.process_interval }} frame analyzed)</small>
-                            </li>
-                            <li>
-                                <strong>Source FPS:</strong> 
-                                {{ analysis.source_fps|default:"Auto-detected" }}
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
         </div>
     {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_js %}
-{% if is_running or not analysis.is_analyzed %}
+<!-- Video.js JavaScript -->
+<script src="https://vjs.zencdn.net/8.13.0/video.min.js"></script>
+
 <script>
+    // Global variables
+    let player;
+    let speechSynthesis = window.speechSynthesis;
+    
     $(document).ready(function() {
+        // Initialize fade-in animations
+        $('.fade-in').each(function(index) {
+            $(this).delay(index * 100).animate({opacity: 1}, 300);
+        });
+        
+        // Initialize Video.js player if video exists
+        {% if analysis.is_analyzed and analysis.output_video %}
+        initializeVideoPlayer();
+        {% endif %}
+        
+        // Initialize analysis functionality
+        {% if is_running or not analysis.is_analyzed %}
+        initializeAnalysis();
+        {% endif %}
+    });
+    
+    // Video Player Functions
+    function initializeVideoPlayer() {
+        const videoElement = document.getElementById('analysis-video');
+        if (videoElement) {
+            player = videojs(videoElement, {
+                responsive: true,
+                fluid: true,
+                playbackRates: [0.125, 0.25, 0.5, 0.75, 1, 1.5, 2],
+                controls: true,
+                preload: 'auto',
+                techOrder: ['html5'],
+                html5: {
+                    nativeVideoTracks: false,
+                    nativeAudioTracks: false,
+                    nativeTextTracks: false
+                }
+            });
+            
+            // Player event handlers
+            player.on('ready', function() {
+                console.log('Video player ready');
+            });
+            
+            player.on('play', function() {
+                // Video started playing
+            });
+            
+            player.on('pause', function() {
+                // Video paused
+            });
+            
+            player.on('ended', function() {
+                // Video ended
+                // Check if loop is enabled
+                const loopBtn = document.getElementById('loop-btn');
+                if (loopBtn && loopBtn.classList.contains('loop-active')) {
+                    player.currentTime(0);
+                    player.play();
+                } else {
+                    showVideoEndMessage();
+                }
+            });
+            
+            player.on('error', function(e) {
+                console.error('Video error:', e);
+                showVideoError();
+            });
+        }
+    }
+    
+    // Speed Control Functions
+    function setPlaybackSpeed(speed) {
+        if (player) {
+            player.playbackRate(speed);
+            
+            // Update button states
+            document.querySelectorAll('.video-controls .btn-group .btn').forEach(btn => {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-primary');
+            });
+            
+            // Highlight active speed button
+            const activeBtn = document.querySelector(`button[onclick="setPlaybackSpeed(${speed})"]`);
+            if (activeBtn) {
+                activeBtn.classList.remove('btn-outline-primary');
+                activeBtn.classList.add('btn-primary');
+            }
+            
+            showToast('Speed Changed', `Playback speed set to ${speed}x`, 'info');
+        }
+    }
+    
+    // Loop Control Functions
+    function toggleLoop() {
+        const loopBtn = document.getElementById('loop-btn');
+        const isLooping = loopBtn.classList.contains('loop-active');
+        
+        if (isLooping) {
+            // Disable loop
+            loopBtn.classList.remove('loop-active', 'btn-success');
+            loopBtn.classList.add('btn-outline-primary');
+            loopBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Loop: OFF';
+            showToast('Loop Disabled', 'Video will not loop automatically', 'info');
+        } else {
+            // Enable loop
+            loopBtn.classList.remove('btn-outline-primary');
+            loopBtn.classList.add('loop-active', 'btn-success');
+            loopBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Loop: ON';
+            showToast('Loop Enabled', 'Video will loop automatically', 'success');
+        }
+    }
+    
+
+    
+    function showVideoEndMessage() {
+        const toast = `
+            <div class="toast-container position-fixed top-0 end-0 p-3">
+                <div class="toast show" role="alert">
+                    <div class="toast-header">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        <strong class="me-auto">Video Complete</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                    </div>
+                    <div class="toast-body">
+                        Analysis video playback completed. Review the insights on the right!
+                    </div>
+                </div>
+            </div>
+        `;
+        $('body').append(toast);
+        setTimeout(() => $('.toast').remove(), 5000);
+    }
+    
+    function showVideoError() {
+        const toast = `
+            <div class="toast-container position-fixed top-0 end-0 p-3">
+                <div class="toast show" role="alert">
+                    <div class="toast-header">
+                        <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                        <strong class="me-auto">Video Error</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                    </div>
+                    <div class="toast-body">
+                        There was an error playing the video. Please try refreshing the page.
+                    </div>
+                </div>
+            </div>
+        `;
+        $('body').append(toast);
+    }
+    
+    // Image Modal Functions
+    function openImageModal(src, title) {
+        // Try jQuery first (if available), then vanilla JS
+        if (typeof $ !== 'undefined') {
+            const $modal = $('#imageModal');
+            const $modalImg = $('#modalImage');
+            
+            if ($modal.length && $modalImg.length) {
+                $modalImg.attr('src', src);
+                $modalImg.attr('alt', title);
+                $modal.addClass('active');
+                
+                // Add keyboard support
+                $(document).off('keydown.imageModal').on('keydown.imageModal', function(e) {
+                    if (e.key === 'Escape') {
+                        closeImageModal();
+                    }
+                });
+                return;
+            }
+        }
+        
+        // Fallback to vanilla JS
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImage');
+        
+        if (!modal || !modalImg) {
+            console.error('Modal elements not found');
+            return;
+        }
+        
+        modalImg.src = src;
+        modalImg.alt = title;
+        modal.classList.add('active');
+        
+        // Add keyboard support (remove any existing listeners first)
+        document.removeEventListener('keydown', handleModalKeydown);
+        document.addEventListener('keydown', handleModalKeydown);
+    }
+    
+    function handleModalKeydown(e) {
+        if (e.key === 'Escape') {
+            closeImageModal();
+        }
+    }
+    
+    function closeImageModal() {
+        // Try jQuery first (if available), then vanilla JS
+        if (typeof $ !== 'undefined') {
+            const $modal = $('#imageModal');
+            if ($modal.length) {
+                $modal.removeClass('active');
+                $(document).off('keydown.imageModal');
+                return;
+            }
+        }
+        
+        // Fallback to vanilla JS
+        const modal = document.getElementById('imageModal');
+        if (modal) {
+            modal.classList.remove('active');
+        }
+        // Remove event listener when closing
+        document.removeEventListener('keydown', handleModalKeydown);
+    }
+    
+    // Add click outside to close modal
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('imageModal');
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeImageModal();
+                }
+            });
+        }
+    });
+    
+    // Download Functions
+    function downloadVideo() {
+        {% if analysis.output_video %}
+        const link = document.createElement('a');
+        link.href = '{% url "analyzer:download_analysis" analysis.id %}';
+        link.download = 'analysis_{{ analysis.id }}_video.mp4';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Show success message
+        showToast('Download Started', 'Your video download has started!', 'success');
+        {% endif %}
+    }
+    
+    function downloadImages() {
+        {% if analysis.is_analyzed %}
+        const link = document.createElement('a');
+        link.href = '{% url "analyzer:download_analysis_images" analysis.id %}';
+        link.download = 'analysis_{{ analysis.id }}_frames.zip';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showToast('Download Started', 'Your image download has started!', 'success');
+        {% endif %}
+    }
+
+    function downloadAnalysis() {
+        downloadImages();
+    }
+    
+    // Share Function
+    function shareVideo() {
+        if (navigator.share) {
+            navigator.share({
+                title: 'Badminton Analysis #{{ analysis.id }}',
+                text: 'Check out my badminton shot analysis!',
+                url: window.location.href
+            }).then(() => {
+                showToast('Shared', 'Analysis shared successfully!', 'success');
+            }).catch(err => {
+                copyToClipboard();
+            });
+        } else {
+            copyToClipboard();
+        }
+    }
+    
+    function copyToClipboard() {
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            showToast('Copied', 'Analysis URL copied to clipboard!', 'info');
+        }).catch(err => {
+            console.log('Error copying:', err);
+            showToast('Error', 'Unable to copy URL. Please copy manually.', 'error');
+        });
+    }
+    
+    // Text-to-Speech Function
+    function speakFeedback() {
+        {% if analysis.analysis_summary and analysis.analysis_summary.ai_feedback %}
+        const text = `{{ analysis.analysis_summary.ai_feedback|escapejs }}`;
+        
+        if (speechSynthesis.speaking) {
+            speechSynthesis.cancel();
+            return;
+        }
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.8;
+        utterance.pitch = 1;
+        utterance.volume = 0.8;
+        
+        utterance.onstart = function() {
+            $('button[onclick="speakFeedback()"]').html('<i class="fas fa-stop me-1"></i>Stop Reading');
+        };
+        
+        utterance.onend = function() {
+            $('button[onclick="speakFeedback()"]').html('<i class="fas fa-volume-up me-1"></i>Listen to Feedback');
+        };
+        
+        speechSynthesis.speak(utterance);
+        {% endif %}
+    }
+    
+    // Toast Notification Function
+    function showToast(title, message, type = 'info') {
+        const icons = {
+            success: 'fas fa-check-circle text-success',
+            error: 'fas fa-exclamation-triangle text-danger',
+            info: 'fas fa-info-circle text-info',
+            warning: 'fas fa-exclamation-circle text-warning'
+        };
+        
+        const toast = `
+            <div class="toast-container position-fixed top-0 end-0 p-3">
+                <div class="toast show" role="alert">
+                    <div class="toast-header">
+                        <i class="${icons[type]} me-2"></i>
+                        <strong class="me-auto">${title}</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        $('body').append(toast);
+        setTimeout(() => $('.toast').remove(), 5000);
+    }
+    
+    // Analysis Functions
+    function initializeAnalysis() {
         const analysisId = {{ analysis.id }};
         let progressInterval;
         
         // Start analysis function
         function startAnalysis() {
-            // Show progress UI immediately and hide start card
-            $('#analysisProgress').show();
+            $('#analysisProgress').show().addClass('fade-in');
             $('#startAnalysisCard').hide();
+            $('#stopAnalysisBtn').prop('disabled', false).html('<i class="fas fa-stop me-2"></i> Stop Analysis');
             
-            // Reset progress to 0
             const progressBar = $('.progress-bar');
+            progressBar.removeClass('bg-warning bg-danger').addClass('bg-success');
             progressBar.css('width', '0%');
-            progressBar.text('0%');
-            $('#statusMessage').text('Starting analysis...');
+            progressBar.html('<span class="fw-bold">0%</span>');
+            $('#statusMessage').html('<div class="spinner mb-2"></div><p class="mb-0">Starting analysis...</p>');
 
             $.ajax({
                 url: "{% url 'analyzer:start_analysis' analysis.id %}",
                 type: "POST",
                 success: function(data) {
                     if (data.status === 'started' || data.status === 'running') {
-                        // Start progress polling
                         startProgressPolling();
+                        showToast('Analysis Started', 'Your video analysis has begun!', 'success');
                     } else {
-                        alert('Error: ' + data.message);
-                        // If error, revert UI
+                        showToast('Error', data.message, 'error');
                         $('#analysisProgress').hide();
                         $('#startAnalysisCard').show();
                     }
                 },
                 error: function() {
-                    alert('Error starting analysis. Please try again.');
-                    // If error, revert UI
+                    showToast('Error', 'Error starting analysis. Please try again.', 'error');
                     $('#analysisProgress').hide();
                     $('#startAnalysisCard').show();
                 }
@@ -327,167 +1261,116 @@
         
         // Stop analysis function
         function stopAnalysis() {
+            $('#stopAnalysisBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Canceling...');
+
             $.ajax({
                 url: "{% url 'analyzer:stop_analysis' analysis.id %}",
                 type: "POST",
                 success: function(data) {
-                    $('#statusMessage').text(data.message);
+                    $('#statusMessage').html('<p class="mb-0">' + data.message + '</p>');
+                    showToast('Cancellation Requested', data.message, 'warning');
                 },
                 error: function() {
-                    alert('Error stopping analysis. Please try again.');
+                    $('#stopAnalysisBtn').prop('disabled', false).html('<i class="fas fa-stop me-2"></i> Stop Analysis');
+                    showToast('Error', 'Error stopping analysis. Please try again.', 'error');
                 }
             });
         }
         
-        // Poll for progress updates
+        // Progress polling
         function startProgressPolling() {
-            // Clear any existing interval
             if (progressInterval) {
                 clearInterval(progressInterval);
             }
             
-            // First immediate check to get initial status
             checkProgress();
-            
-            // Set up new polling interval
-            progressInterval = setInterval(checkProgress, 1000); // Poll every second
+            progressInterval = setInterval(checkProgress, 1000);
         }
         
-        // Function to check progress
         function checkProgress() {
-            console.log("Checking progress for analysis ID: {{ analysis.id }}");
-            
             $.ajax({
                 url: "{% url 'analyzer:analysis_progress' analysis.id %}",
                 type: "GET",
                 success: function(data) {
-                    console.log("Progress update received:", data); // Debug log
-                    
-                    // Update progress bar only if valid progress is received
                     const progressBar = $('.progress-bar');
                     if (typeof data.progress === 'number') {
                         progressBar.css('width', data.progress + '%');
-                        progressBar.text(data.progress + '%');
+                        progressBar.html('<span class="fw-bold">' + data.progress + '%</span>');
+                    }
+
+                    if (data.status === 'canceling') {
+                        progressBar.removeClass('bg-success bg-danger').addClass('bg-warning');
+                        $('#statusMessage').html('<p class="mb-0 text-warning">' + data.message + '</p>');
+                        $('#stopAnalysisBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Canceling...');
+                        return;
+                    }
+
+                    if (data.status === 'error') {
+                        progressBar.removeClass('bg-success bg-warning').addClass('bg-danger');
+                    } else {
+                        progressBar.removeClass('bg-warning bg-danger').addClass('bg-success');
                     }
                     
-                    // Update status message with fallback
-                    $('#statusMessage').html(
-                        data.message ||
-                        'Processing... (If stuck, try refreshing the page)'
-                    );
+                    const statusHtml = data.message ? 
+                        '<p class="mb-0">' + data.message + '</p>' : 
+                        '<div class="spinner mb-2"></div><p class="mb-0">Processing... (If stuck, try refreshing)</p>';
                     
-                    // Handle completion or error
-                    if (data.status === 'completed' || data.status === 'error') {
+                    $('#statusMessage').html(statusHtml);
+                    
+                    if (data.status === 'completed' || data.status === 'error' || data.status === 'canceled') {
                         clearInterval(progressInterval);
                         
                         if (data.status === 'completed') {
-                            $('#statusMessage').text('Analysis completed successfully! Reloading page...');
+                            $('#statusMessage').html('<p class="mb-0">Analysis completed successfully! Reloading page...</p>');
+                            showToast('Success', 'Analysis completed successfully!', 'success');
                             
-                            // Set a flag in localStorage to prevent infinite refresh loop
                             const refreshKey = 'analysis_' + analysisId + '_refreshed';
                             if (!localStorage.getItem(refreshKey)) {
-                                // Only reload once
                                 localStorage.setItem(refreshKey, 'true');
-                                setTimeout(function() {
-                                    window.location.reload();
-                                }, 1000);
+                                setTimeout(() => window.location.reload(), 2000);
                             } else {
-                                // Clear the flag after 30 seconds
-                                setTimeout(function() {
-                                    localStorage.removeItem(refreshKey);
-                                }, 30000);
-                                $('#statusMessage').text('Analysis completed successfully! View results below.');
+                                setTimeout(() => localStorage.removeItem(refreshKey), 30000);
+                                $('#statusMessage').html('<p class="mb-0">Analysis completed successfully! View results below.</p>');
                             }
                         } else if (data.status === 'error') {
-                            $('#statusMessage').text('Error: ' + data.message);
+                            $('#statusMessage').html('<p class="mb-0 text-danger">Error: ' + data.message + '</p>');
+                            showToast('Error', data.message, 'error');
+                            $('#stopAnalysisBtn').prop('disabled', false).html('<i class="fas fa-stop me-2"></i> Stop Analysis');
+                            $('#analysisProgress').hide();
+                            $('#startAnalysisCard').show();
+                        } else if (data.status === 'canceled') {
+                            $('#statusMessage').html('<p class="mb-0 text-warning">' + data.message + '</p>');
+                            showToast('Analysis Canceled', data.message || 'Analysis canceled', 'warning');
+                            $('#stopAnalysisBtn').prop('disabled', false).html('<i class="fas fa-stop me-2"></i> Stop Analysis');
+                            $('#analysisProgress').hide();
+                            $('#startAnalysisCard').show();
                         }
                     }
                 },
                 error: function() {
-                    console.log("Error fetching progress");
-                    $('#statusMessage').text('Error fetching progress. Please wait...');
+                    $('#statusMessage').html('<p class="mb-0 text-warning">Error fetching progress. Please wait...</p>');
                 }
             });
         }
         
-        // Bind click handlers
+        // Bind event handlers
         $('#startAnalysisBtn').click(startAnalysis);
         $('#stopAnalysisBtn').click(stopAnalysis);
         
-        // Start progress polling if analysis is already running
+        // Auto-start if running
         {% if is_running %}
             startProgressPolling();
         {% endif %}
-    });
-</script>
-{% endif %}
-
-{% if analysis.is_analyzed and analysis.output_video %}
-<!-- Plyr.js -->
-<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Function to initialize Plyr
-        function initPlyr(videoElement) {
-            // Common Plyr options
-            const plyrOptions = {
-                controls: [
-                    'play-large', // The large play button in the center
-                    'restart', // Restart playback
-                    'rewind', // Rewind by the seek time (default 10 seconds)
-                    'play', // Play/pause playback
-                    'fast-forward', // Fast-forward by the seek time (default 10 seconds)
-                    'progress', // The progress bar and scrubber for playback and buffering
-                    'current-time', // The current time of playback
-                    'duration', // The full duration of the media
-                    'mute', // Toggle mute
-                    'volume', // Volume control
-                    'captions', // Toggle captions
-                    'settings', // Settings menu
-                    'pip', // Picture-in-picture (currently Safari only)
-                    'airplay', // Airplay (currently Safari only)
-                    'fullscreen' // Toggle fullscreen
-                ],
-                speed: {
-                    selected: 1,
-                    options: [0.125,0.25, 0.5, 0.75, 1, 1.25, 1.5, 2]
-                },
-                seekTime: 5,
-                keyboard: { focused: true, global: true }
-            };
-            
-            // Initialize Plyr
-            const player = new Plyr(videoElement, plyrOptions);
-            
-            // Return the player instance
-            return player;
+    }
+    
+    // Cleanup function
+    $(window).on('beforeunload', function() {
+        if (player) {
+            player.dispose();
         }
-        
-        // Find all video elements and initialize Plyr
-        const videoElements = document.querySelectorAll('.plyr-video');
-        const players = Array.from(videoElements).map(video => initPlyr(video));
-        
-        // Event listeners for the first player (if available)
-        if (players.length > 0) {
-            const player = players[0];
-            
-            player.on('ready', (event) => {
-                console.log('Video player is ready');
-            });
-            
-            player.on('play', (event) => {
-                console.log('Video started playing');
-            });
-            
-            player.on('pause', (event) => {
-                console.log('Video paused');
-            });
-            
-            player.on('ended', (event) => {
-                console.log('Video playback completed');
-            });
+        if (speechSynthesis.speaking) {
+            speechSynthesis.cancel();
         }
     });
 </script>
-{% endif %}
 {% endblock %}

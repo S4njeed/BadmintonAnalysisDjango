@@ -4,22 +4,45 @@ Views for the Analyzer app - handles HTTP requests and renders responses.
 
 import os
 import threading
+from io import BytesIO
+from mimetypes import guess_type
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login  # Import login function
 from django.contrib.auth.decorators import login_required  # Import login_required
-from django.http import JsonResponse, HttpResponse, Http404
+from django.http import FileResponse, HttpResponse, Http404, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 
 from .forms import VideoUploadForm, SignUpForm  # Import SignUpForm
-from .models import VideoAnalysis
+from .models import VideoAnalysis, AnalysisJob
 from .services.video_analysis_app import DjangoVideoAnalysisApp
 
-# Global dictionary to track running analysis tasks
-running_analyses = {}
+
+ACTIVE_JOB_STATUSES = {
+    AnalysisJob.STATUS_QUEUED,
+    AnalysisJob.STATUS_RUNNING,
+}
+
+
+def _clear_previous_analysis_outputs(analysis):
+    """Remove any previously generated files before rerunning analysis."""
+    for field_name in ('output_video', 'pre_hit_frame', 'hit_frame', 'follow_through_frame'):
+        field = getattr(analysis, field_name)
+        if field:
+            field.delete(save=False)
+            setattr(analysis, field_name, None)
+
+    analysis.analysis_summary = None
+    analysis.is_analyzed = False
+    analysis.save(update_fields=['output_video', 'pre_hit_frame', 'hit_frame', 'follow_through_frame', 'analysis_summary', 'is_analyzed', 'updated_at'])
+
+
+def _get_analysis_job(analysis):
+    return AnalysisJob.objects.filter(analysis=analysis).first()
 
 
 def home(request):
@@ -51,13 +74,12 @@ def upload_video(request):
 def analysis_detail(request, analysis_id):
     """Display detailed view of an analysis."""
     analysis = get_object_or_404(VideoAnalysis, id=analysis_id)
-    
-    # Convert to string for consistent lookup
-    str_analysis_id = str(analysis_id)
+    analysis_job = _get_analysis_job(analysis)
     
     context = {
         'analysis': analysis,
-        'is_running': str_analysis_id in running_analyses,
+        'analysis_job': analysis_job,
+        'is_running': bool(analysis_job and analysis_job.status in ACTIVE_JOB_STATUSES),
         'MEDIA_URL': settings.MEDIA_URL,  # Add MEDIA_URL for HLS streaming paths
     }
     return render(request, 'analyzer/analysis_detail.html', context)
@@ -77,125 +99,117 @@ def start_analysis(request, analysis_id):
         return JsonResponse({'status': 'error', 'message': 'POST required'}, status=405)
     
     analysis = get_object_or_404(VideoAnalysis, id=analysis_id)
+    job, created = AnalysisJob.objects.get_or_create(analysis=analysis)
     
-    # Don't restart if already running
-    if analysis_id in running_analyses:
+    # Don't restart if already running or queued
+    if not created and job.status in ACTIVE_JOB_STATUSES:
         return JsonResponse({
             'status': 'running',
-            'message': 'Analysis already running'
+            'progress': job.progress,
+            'message': job.message or 'Analysis already running'
         })
     
-    # Clear previous results if any
-    if analysis.is_analyzed:
-        analysis.is_analyzed = False
-        analysis.output_video = None
-        analysis.pre_hit_frame = None
-        analysis.hit_frame = None
-        analysis.follow_through_frame = None
-        analysis.analysis_summary = None
-        analysis.save()
+    # Clear previous results if any before rerunning
+    if analysis.is_analyzed or analysis.output_video or analysis.pre_hit_frame or analysis.hit_frame or analysis.follow_through_frame:
+        _clear_previous_analysis_outputs(analysis)
     
     # Create the analyzer instance
-    analyzer = DjangoVideoAnalysisApp(analysis)
-    
-    # Store in running analyses - ensure the key is a string
-    str_analysis_id = str(analysis_id)
-    running_analyses[str_analysis_id] = {
-        'analyzer': analyzer,
-        'progress': 0,
-        'status': 'starting',
-        'message': 'Initializing analysis...'
-    }
+    analyzer = DjangoVideoAnalysisApp(analysis, analysis_job=job)
+
+    job.reset_for_run('Initializing analysis...')
     
     # Start analysis in a background thread
     thread = threading.Thread(
         target=run_analysis_thread,
-        args=(analysis_id, analyzer)
+        args=(analysis_id, analyzer, job.id)
     )
     thread.daemon = True
     thread.start()
     
     return JsonResponse({
         'status': 'started',
+        'progress': job.progress,
         'message': 'Analysis started successfully'
     })
 
 
-def run_analysis_thread(analysis_id, analyzer):
+def run_analysis_thread(analysis_id, analyzer, job_id):
     """Run the analysis in a background thread."""
-    # Convert to string for consistent lookup
-    str_analysis_id = str(analysis_id)
-    
     try:
-        print(f"Starting analysis thread for ID: {str_analysis_id}")
-        running_analyses[str_analysis_id]['status'] = 'running'
+        job = AnalysisJob.objects.get(id=job_id)
+        if job.cancel_requested:
+            job.mark_canceled('Analysis canceled before start')
+            return
+        job.mark_running('Running analysis...')
         
         # Run the analysis
         result = analyzer.analyze_video()
         
         # Update the status
         if result.get('status') == 'complete':
-            running_analyses[str_analysis_id]['status'] = 'completed'
-            running_analyses[str_analysis_id]['message'] = 'Analysis completed successfully'
-            
-            # Important: Clean up running_analyses after successful completion
-            # Wait 10 seconds to ensure client has time to check progress one last time
-            import time
-            time.sleep(10)
-            if str_analysis_id in running_analyses:
-                del running_analyses[str_analysis_id]
+            job.mark_completed(result.get('message', 'Analysis completed successfully'))
+        elif result.get('status') == 'canceled':
+            job.mark_canceled(result.get('message', 'Analysis canceled'))
         else:
-            running_analyses[str_analysis_id]['status'] = 'error'
-            running_analyses[str_analysis_id]['message'] = result.get('message', 'Analysis failed')
+            job.mark_failed(
+                result.get('message', 'Analysis failed'),
+                result.get('message', 'Analysis failed')
+            )
             
     except Exception as e:
         # Handle exceptions
         print(f"Error in analysis thread: {str(e)}")
-        running_analyses[str_analysis_id]['status'] = 'error'
-        running_analyses[str_analysis_id]['message'] = str(e)
-    
-    # Keep the result in running_analyses for a short time so the client can fetch it
-    # A proper cleanup mechanism would be needed in a production system
+        try:
+            job = AnalysisJob.objects.get(id=job_id)
+            job.mark_failed('Analysis failed', str(e))
+        except AnalysisJob.DoesNotExist:
+            pass
 
 
 @csrf_exempt
 def analysis_progress(request, analysis_id):
     """Get the current progress of an analysis."""
     try:
-        # Check if the analysis exists and get the model
         analysis = get_object_or_404(VideoAnalysis, id=analysis_id)
-        
-        # Convert analysis_id to a string to be safe
-        analysis_id_str = str(analysis_id)
-        
-        # Check if the analysis is running
-        if analysis_id_str in running_analyses:
-            # Get the analyzer data from running analyses
-            analyzer_data = running_analyses[analysis_id_str]
-            
-            # Get the analyzer instance
-            if 'analyzer' in analyzer_data:
-                analyzer = analyzer_data['analyzer']
-                
-                # Debug info about the analyzer state
-                print(f"Analysis {analysis_id} status: {analyzer_data['status']}")
-                print(f"Progress: {analyzer.progress}%, Message: {analyzer.status_message}")
-                
-                # Return the progress info
+
+        job = _get_analysis_job(analysis)
+        if job:
+            if job.status in ACTIVE_JOB_STATUSES:
+                if job.cancel_requested:
+                    return JsonResponse({
+                        'status': 'canceling',
+                        'progress': job.progress,
+                        'message': job.message or 'Cancellation requested. Stopping analysis...'
+                    })
+
                 return JsonResponse({
-                    'status': analyzer_data['status'],
-                    'progress': analyzer.progress,
-                    'message': analyzer.status_message
+                    'status': job.status,
+                    'progress': job.progress,
+                    'message': job.message or 'Processing analysis...'
                 })
-            else:
-                # No analyzer in the data
+
+            if job.status == AnalysisJob.STATUS_COMPLETED and analysis.is_analyzed:
+                return JsonResponse({
+                    'status': 'completed',
+                    'progress': 100,
+                    'message': job.message or 'Analysis completed',
+                    'result_url': reverse('analyzer:analysis_detail', args=[analysis_id])
+                })
+
+            if job.status == AnalysisJob.STATUS_CANCELED:
+                return JsonResponse({
+                    'status': 'canceled',
+                    'progress': job.progress,
+                    'message': job.message or 'Analysis canceled'
+                })
+
+            if job.status == AnalysisJob.STATUS_FAILED:
                 return JsonResponse({
                     'status': 'error',
-                    'progress': 0,
-                    'message': 'Analysis configuration error'
+                    'progress': job.progress,
+                    'message': job.error_message or job.message or 'Analysis failed'
                 })
-        
-        # Not in running_analyses, check if it's completed
+
         if analysis.is_analyzed:
             return JsonResponse({
                 'status': 'completed',
@@ -225,22 +239,22 @@ def stop_analysis(request, analysis_id):
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'POST required'}, status=405)
     
-    # Convert to string for consistent lookup
-    str_analysis_id = str(analysis_id)
-    
-    if str_analysis_id not in running_analyses:
+    analysis = get_object_or_404(VideoAnalysis, id=analysis_id)
+    job = _get_analysis_job(analysis)
+
+    if job is None or job.status not in ACTIVE_JOB_STATUSES:
         return JsonResponse({
             'status': 'error',
             'message': 'No analysis running with this ID'
         })
     
-    # Request the analyzer to stop
-    analyzer = running_analyses[str_analysis_id]['analyzer']
-    response = analyzer.request_stop()
+    job.cancel_requested = True
+    job.message = 'Cancellation requested. Stopping analysis...'
+    job.save(update_fields=['cancel_requested', 'message', 'updated_at'])
     
     return JsonResponse({
-        'status': 'stopping',
-        'message': response
+        'status': 'canceling',
+        'message': 'Cancellation requested. Stopping analysis...'
     })
 
 
@@ -251,22 +265,65 @@ def download_analysis(request, analysis_id):
     if not analysis.output_video:
         raise Http404("No analyzed video available")
     
-    # Determine content type based on file extension
-    file_path = analysis.output_video.path
-    file_name = os.path.basename(file_path)
-    
-    # Set appropriate content type
-    content_type = 'video/mp4'  # Default
-    if file_name.endswith('.avi'):
-        content_type = 'video/x-msvideo'
-    elif file_name.endswith('.mov'):
-        content_type = 'video/quicktime'
-    elif file_name.endswith('.webm'):
-        content_type = 'video/webm'
-    
-    # Serve the file
-    response = HttpResponse(analysis.output_video.read(), content_type=content_type)
-    response['Content-Disposition'] = f'attachment; filename="{file_name}"'
+    stored_file_name = os.path.basename(analysis.output_video.name or analysis.output_video.path)
+    download_extension = os.path.splitext(stored_file_name)[1] or '.mp4'
+    download_name = f'analysis_{analysis.id}_video{download_extension}'
+    content_type = guess_type(stored_file_name)[0] or 'video/mp4'
+
+    try:
+        analysis.output_video.open('rb')
+    except FileNotFoundError:
+        raise Http404("Analyzed video file is missing")
+
+    return FileResponse(
+        analysis.output_video,
+        as_attachment=True,
+        filename=download_name,
+        content_type=content_type,
+    )
+
+
+def download_analysis_images(request, analysis_id):
+    """Download the analyzed key frames as a ZIP archive."""
+    analysis = get_object_or_404(VideoAnalysis, id=analysis_id)
+
+    frame_fields = [
+        ('pre_hit', analysis.pre_hit_frame),
+        ('hit', analysis.hit_frame),
+        ('follow_through', analysis.follow_through_frame),
+    ]
+
+    archive_buffer = BytesIO()
+    files_added = 0
+
+    with ZipFile(archive_buffer, 'w', ZIP_DEFLATED) as zip_file:
+        for phase, frame_field in frame_fields:
+            if not frame_field:
+                continue
+
+            try:
+                frame_field.open('rb')
+                zip_file.writestr(
+                    f'analysis_{analysis.id}_{phase}.jpg',
+                    frame_field.read(),
+                )
+                files_added += 1
+            except FileNotFoundError:
+                continue
+            except Exception as e:
+                print(f"Error adding {phase} frame to archive: {e}")
+            finally:
+                try:
+                    frame_field.close()
+                except Exception:
+                    pass
+
+    if files_added == 0:
+        raise Http404("No analyzed images available")
+
+    archive_buffer.seek(0)
+    response = HttpResponse(archive_buffer.getvalue(), content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename="analysis_{analysis.id}_frames.zip"'
     return response
 
 

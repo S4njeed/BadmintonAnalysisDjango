@@ -94,3 +94,15 @@ Ngrok allows you to expose your local development server to the internet. This i
 
 6.  **Access via Ngrok URL:**
     You can now access your application using the public Ngrok URL provided in the terminal.
+
+## Version Log
+
+### 2026-04-02
+- Added a persistent `AnalysisJob` model so analysis progress, cancellation, and completion are stored in the database.
+- Switched the analysis views and polling endpoints from in-memory state to job-backed state.
+- Synced the analyzer service with the job record so progress and status updates are saved while processing.
+- Split downloads into a streamed analyzed video download and a ZIP download for the key-frame images.
+- Improved cancel polling with an explicit `canceling` state so the UI keeps polling until cancellation is confirmed.
+- Updated the analysis detail page to handle canceled jobs and refresh correctly after reruns.
+- Added lifecycle tests for job creation, progress polling, and cancellation.
+- Added download endpoint coverage for the analyzed video and the key-frame image archive.

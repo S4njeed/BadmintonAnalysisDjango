@@ -49,8 +49,15 @@
                                     </a>
                                     {% if analysis.is_analyzed and analysis.output_video %}
                                         <a href="{% url 'analyzer:download_analysis' analysis.id %}" class="btn btn-sm btn-outline-success ms-1">
-                                            <i class="fas fa-download me-1"></i> Download
+                                            <i class="fas fa-video me-1"></i> Download Video
                                         </a>
+                                    {% endif %}
+                                    {% if analysis.is_analyzed %}
+                                        {% if analysis.pre_hit_frame or analysis.hit_frame or analysis.follow_through_frame %}
+                                            <a href="{% url 'analyzer:download_analysis_images' analysis.id %}" class="btn btn-sm btn-outline-info ms-1">
+                                                <i class="fas fa-images me-1"></i> Download Images
+                                            </a>
+                                        {% endif %}
                                     {% endif %}
                                     {# Delete Button Form #}
                                     <form action="{% url 'analyzer:delete_analysis' analysis.id %}" method="post" class="d-inline ms-1">
