@@ -14,12 +14,12 @@ pip install -r requirements.txt
 
 You will also need to have the necessary YOLO models (`yolo11n-pose.pt` and `shuttlecock.pt`) available. By default, the application looks for these in the project root directory.
 
-Additionally, ensure you have an Ollama instance running and accessible if you want to use the AI feedback feature. The model specified in `ollama_feedback_service.py` (currently `gemma3:4b`) should be available in your Ollama setup.
+Additionally, ensure you have an Ollama instance running and accessible if you want to use the AI feedback feature. The model specified in `ollama_feedback_service.py` (currently `gemma4:e4b`) should be available in your Ollama setup.
 
-To use the AI feedback feature, you need to install Ollama and download the `gemma3:4b` model. Follow the instructions on the [Ollama website](https://ollama.com/download) to install Ollama. Once installed, open your terminal and run the following command to download the model:
+To use the AI feedback feature, you need to install Ollama and download the `gemma4:e4b` model. Follow the instructions on the [Ollama website](https://ollama.com/download) to install Ollama. Once installed, open your terminal and run the following command to download the model:
 
 ```bash
-ollama pull gemma3:4b
+ollama pull gemma4:e4b
 ```
 
 ## Running the Server Locally
@@ -96,6 +96,12 @@ Ngrok allows you to expose your local development server to the internet. This i
     You can now access your application using the public Ngrok URL provided in the terminal.
 
 ## Version Log
+
+### 2026-04-05
+- Added footwork tracking to the analysis summary with shot-specific movement guidance for smash, clear, and drop shot patterns.
+- Rendered footwork tracking directly on the analyzed video with lower-body skeleton lines and stance-width cues.
+- Updated AI feedback to generate structured shot and footwork coaching, including fallback output when Ollama is unavailable.
+- Tightened keypoint validation so the tracker requires the ankle landmarks needed for footwork analysis.
 
 ### 2026-04-02
 - Added a persistent `AnalysisJob` model so analysis progress, cancellation, and completion are stored in the database.

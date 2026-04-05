@@ -54,6 +54,13 @@ class DjangoVideoAnalysisApp:
         # Progress tracking for async feedback
         self._progress = 0
         self._status_message = "Initializing..."
+
+        # Cancellation polling cache
+        self._cached_stop_requested = False
+        self._last_stop_check_at = 0.0
+        self._last_stop_check_frame = -1
+        self._stop_check_interval_seconds = 0.5
+        self._stop_check_interval_frames = 10
         
         # Processing settings
         self._process_interval = 2  # Process every Nth frame
@@ -126,11 +133,26 @@ class DjangoVideoAnalysisApp:
         if self.analysis_job is None:
             return False
 
+        now = time.monotonic()
+        should_refresh = (
+            self._last_stop_check_at == 0.0 or
+            (now - self._last_stop_check_at) >= self._stop_check_interval_seconds or
+            (self._frame_count - self._last_stop_check_frame) >= self._stop_check_interval_frames
+        )
+
+        if not should_refresh:
+            return self._cached_stop_requested
+
         try:
             self.analysis_job.refresh_from_db(fields=['cancel_requested'])
-            return self.analysis_job.cancel_requested
+            self._cached_stop_requested = bool(self.analysis_job.cancel_requested)
         except Exception:
-            return self.stop_requested
+            self._cached_stop_requested = self.stop_requested
+        finally:
+            self._last_stop_check_at = now
+            self._last_stop_check_frame = self._frame_count
+
+        return self._cached_stop_requested
 
     @staticmethod
     def _buffer_to_bytes(buffer) -> bytes:
@@ -192,6 +214,9 @@ class DjangoVideoAnalysisApp:
         self.tracker = BadmintonVideoTracker(target_shot_type=shot_type)
         self._frame_count = 0
         self.stop_requested = False
+        self._cached_stop_requested = False
+        self._last_stop_check_at = 0.0
+        self._last_stop_check_frame = -1
         return f"Initialized tracker for {shot_type.replace('_', ' ').title()} analysis"
     
     def process_frame(self, frame: np.ndarray, current_time: float) -> Tuple[Optional[np.ndarray], Optional[Dict]]:

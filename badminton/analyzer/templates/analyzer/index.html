@@ -6,10 +6,10 @@
 <section class="hero-section mb-4" data-pretext-hero>
     <div class="hero-grid">
         <div class="hero-copy">
-            <p class="section-eyebrow mb-3">Athletic Tech / Badminton AI</p>
+            <p class="section-eyebrow mb-3">Badminton Form Analysis</p>
             <h1 class="hero-title" data-pretext-hero-title>KineticPoseAI Badminton Form Analyzer</h1>
             <p class="hero-lead mt-3">
-                Capture a rally, isolate the swing, and get high-speed form feedback built for modern athletes who want sharper mechanics and faster improvement.
+                Capture a rally, isolate the swing, and read footwork, contact point, and shot choice from real court footage.
             </p>
 
             <div class="hero-actions">
@@ -22,34 +22,55 @@
             </div>
 
             <div class="hero-pill-row">
-                <span class="hero-pill"><i class="fas fa-bolt text-info"></i> AI pose estimation</span>
-                <span class="hero-pill"><i class="fas fa-video text-success"></i> Key frame breakdown</span>
-                <span class="hero-pill"><i class="fas fa-bullseye text-warning"></i> Shot-aware coaching</span>
+                <span class="hero-pill"><i class="fas fa-bolt text-info"></i> Shuttle tracking</span>
+                <span class="hero-pill"><i class="fas fa-video text-success"></i> Court map review</span>
+                <span class="hero-pill"><i class="fas fa-bullseye text-warning"></i> Footwork coaching</span>
             </div>
         </div>
 
-        <div class="hero-radar">
-            <div class="hero-radar-stack">
-                <div class="hero-metric">
-                    <div>
-                        <strong>Signal lock</strong>
-                        <span>Motion capture tuned for fast swings</span>
-                    </div>
-                    <div class="value">0.98</div>
+        <div class="hero-court">
+            <div class="hero-court-head">
+                <div>
+                    <span class="hero-court-eyebrow">Singles court</span>
+                    <h2>Court view</h2>
                 </div>
-                <div class="hero-metric">
-                    <div>
-                        <strong>Analysis mode</strong>
-                        <span>Smash, clear, and drop shot reads</span>
-                    </div>
-                    <div class="value">LIVE</div>
+                <span class="hero-court-chip">Net to back line</span>
+            </div>
+
+            <div class="hero-court-board">
+                <svg class="hero-court-lines" viewBox="0 0 320 440" aria-hidden="true">
+                    <rect x="18" y="18" width="284" height="404" rx="18"></rect>
+                    <line x1="18" y1="80" x2="302" y2="80"></line>
+                    <line x1="18" y1="220" x2="302" y2="220" class="hero-court-net-line"></line>
+                    <line x1="18" y1="360" x2="302" y2="360"></line>
+                    <line x1="160" y1="18" x2="160" y2="422"></line>
+                    <path d="M44 390C72 306 118 232 160 182S246 106 278 84"></path>
+                    <circle cx="278" cy="84" r="6"></circle>
+                </svg>
+
+                <div class="hero-court-label rear">
+                    Rear court
+                    <small>Smash setup</small>
                 </div>
-                <div class="hero-metric">
-                    <div>
-                        <strong>Delivery</strong>
-                        <span>Designed for mobile use courtside</span>
-                    </div>
-                    <div class="value">FAST</div>
+                <div class="hero-court-label middle">
+                    Mid court
+                    <small>Clear recovery</small>
+                </div>
+                <div class="hero-court-label front">
+                    Front court
+                    <small>Drop control</small>
+                </div>
+                <div class="hero-court-net"></div>
+            </div>
+
+            <div class="hero-court-foot">
+                <div class="hero-court-stat">
+                    <span>Footwork</span>
+                    <strong>Split step</strong>
+                </div>
+                <div class="hero-court-stat">
+                    <span>Contact</span>
+                    <strong>High point</strong>
                 </div>
             </div>
         </div>
@@ -75,7 +96,7 @@
                         </div>
                         <div>
                             <h3>Upload a rally clip</h3>
-                            <p>Drop in training footage or a match recording from any recent session.</p>
+                            <p>Drop in training footage or a match recording from your latest session.</p>
                         </div>
                     </li>
                     <li class="feature-item">
@@ -88,7 +109,7 @@
                         </div>
                         <div>
                             <h3>Select the shot type</h3>
-                            <p>Choose smash, clear, or drop shot so the model evaluates the right mechanics.</p>
+                            <p>Choose smash, clear, or drop so the model focuses on the right motion pattern.</p>
                         </div>
                     </li>
                     <li class="feature-item">
@@ -101,8 +122,8 @@
                             </svg>
                         </div>
                         <div>
-                            <h3>Adjust processing depth</h3>
-                            <p>Use the advanced controls when you want faster runs or denser frame sampling.</p>
+                            <h3>Set frame spacing</h3>
+                            <p>Use the advanced controls to balance speed against detail on longer rallies.</p>
                         </div>
                     </li>
                     <li class="feature-item">
@@ -112,8 +133,8 @@
                             </svg>
                         </div>
                         <div>
-                            <h3>Analyze pose and timing</h3>
-                            <p>The AI tracks key motion points and extracts readable performance signals.</p>
+                            <h3>Review contact and recovery</h3>
+                            <p>The analysis highlights key frames, shot timing, and how you reset after contact.</p>
                         </div>
                     </li>
                     <li class="feature-item">
@@ -123,8 +144,8 @@
                             </svg>
                         </div>
                         <div>
-                            <h3>Review the feedback</h3>
-                            <p>Get a cleaner swing story with frames, timing, and coaching notes in one place.</p>
+                            <h3>Coach the next rally</h3>
+                            <p>Use the feedback to tighten your footwork, shot selection, and court coverage.</p>
                         </div>
                     </li>
                 </ul>
@@ -149,7 +170,7 @@
                         </div>
                         <div>
                             <h3>Record from the side</h3>
-                            <p>A clean side angle makes the body line and racket path easier to read.</p>
+                            <p>A side angle makes racket path, shoulder rotation, and body alignment easier to read.</p>
                         </div>
                     </li>
                     <li class="feature-item">
@@ -161,7 +182,7 @@
                         </div>
                         <div>
                             <h3>Use strong lighting</h3>
-                            <p>Good contrast gives the estimator more reliable detail across fast motion.</p>
+                            <p>Good contrast helps the shuttle, limbs, and court lines stay visible through fast motion.</p>
                         </div>
                     </li>
                     <li class="feature-item">
@@ -173,7 +194,7 @@
                         </div>
                         <div>
                             <h3>Keep the player centered</h3>
-                            <p>Centering the action reduces edge cropping and keeps the body in frame.</p>
+                            <p>Centering the athlete keeps the swing and recovery path inside the court frame.</p>
                         </div>
                     </li>
                     <li class="feature-item">
@@ -187,7 +208,7 @@
                         </div>
                         <div>
                             <h3>Try slow motion when possible</h3>
-                            <p>Slower footage helps highlight the contact point and follow-through path.</p>
+                            <p>Slower footage helps highlight contact point, shuttle height, and follow-through.</p>
                         </div>
                     </li>
                     <li class="feature-item">
@@ -200,7 +221,7 @@
                         </div>
                         <div>
                             <h3>Increase frame skip for long clips</h3>
-                            <p>Higher skip values keep processing responsive when the source footage is lengthy.</p>
+                            <p>Higher skip values keep analysis responsive when a rally or session runs long.</p>
                         </div>
                     </li>
                 </ul>
@@ -274,28 +295,75 @@
             <div class="card-body">
                 <div class="shot-grid">
                     <article class="shot-card smash">
-                        <svg class="shot-arc" viewBox="0 0 72 44" aria-hidden="true">
-                            <path d="M6 34C18 10 40 8 66 30"></path>
-                            <circle cx="66" cy="30" r="3.6" fill="currentColor"></circle>
-                        </svg>
+                        <div class="shot-card-top">
+                            <span class="shot-tag">Rear court</span>
+                            <span class="shot-zone">Attack</span>
+                        </div>
+                        <div class="shot-visual" aria-hidden="true">
+                            <svg class="shot-flight" viewBox="0 0 160 96">
+                                <rect class="court-outline" x="14" y="12" width="132" height="72" rx="12"></rect>
+                                <line class="court-net" x1="14" y1="48" x2="146" y2="48"></line>
+                                <line class="court-center" x1="80" y1="12" x2="80" y2="84"></line>
+                                <line class="court-attack-line" x1="14" y1="28" x2="146" y2="28"></line>
+                                <line class="court-attack-line" x1="14" y1="68" x2="146" y2="68"></line>
+                                <path d="M24 76C52 40 84 24 124 22"></path>
+                                <circle class="shuttle-head" cx="124" cy="22" r="5"></circle>
+                                <path class="feather-line" d="M118 22l-14-11"></path>
+                                <path class="feather-line" d="M119 23l-10-4"></path>
+                                <path class="feather-line" d="M120 20l-8 4"></path>
+                                <path class="feather-line" d="M117 22l-12 9"></path>
+                            </svg>
+                        </div>
                         <h3 class="shot-name">Smash</h3>
-                        <p class="shot-sub">Powerful overhead pressure shot with explosive downward intent.</p>
+                        <p class="shot-sub">A steep rear-court attack shot built to finish the rally at the net.</p>
                     </article>
+
                     <article class="shot-card clear">
-                        <svg class="shot-arc" viewBox="0 0 72 44" aria-hidden="true">
-                            <path d="M6 34C18 7 42 5 66 27"></path>
-                            <circle cx="66" cy="27" r="3.6" fill="currentColor"></circle>
-                        </svg>
+                        <div class="shot-card-top">
+                            <span class="shot-tag">Back line</span>
+                            <span class="shot-zone">Recovery</span>
+                        </div>
+                        <div class="shot-visual" aria-hidden="true">
+                            <svg class="shot-flight" viewBox="0 0 160 96">
+                                <rect class="court-outline" x="14" y="12" width="132" height="72" rx="12"></rect>
+                                <line class="court-net" x1="14" y1="48" x2="146" y2="48"></line>
+                                <line class="court-center" x1="80" y1="12" x2="80" y2="84"></line>
+                                <line class="court-attack-line" x1="14" y1="28" x2="146" y2="28"></line>
+                                <line class="court-attack-line" x1="14" y1="68" x2="146" y2="68"></line>
+                                <path d="M24 76C40 28 82 12 124 18"></path>
+                                <circle class="shuttle-head" cx="124" cy="18" r="5"></circle>
+                                <path class="feather-line" d="M118 18l-14-12"></path>
+                                <path class="feather-line" d="M119 19l-10-4"></path>
+                                <path class="feather-line" d="M120 16l-8 4"></path>
+                                <path class="feather-line" d="M117 18l-12 9"></path>
+                            </svg>
+                        </div>
                         <h3 class="shot-name">Clear</h3>
-                        <p class="shot-sub">A higher defensive shot that pushes the opponent deep to the backcourt.</p>
+                        <p class="shot-sub">A high lift to the back line that resets the rally and buys time.</p>
                     </article>
+
                     <article class="shot-card drop">
-                        <svg class="shot-arc" viewBox="0 0 72 44" aria-hidden="true">
-                            <path d="M6 20C20 18 38 20 58 30"></path>
-                            <circle cx="58" cy="30" r="3.6" fill="currentColor"></circle>
-                        </svg>
+                        <div class="shot-card-top">
+                            <span class="shot-tag">Net play</span>
+                            <span class="shot-zone">Front court</span>
+                        </div>
+                        <div class="shot-visual" aria-hidden="true">
+                            <svg class="shot-flight" viewBox="0 0 160 96">
+                                <rect class="court-outline" x="14" y="12" width="132" height="72" rx="12"></rect>
+                                <line class="court-net" x1="14" y1="48" x2="146" y2="48"></line>
+                                <line class="court-center" x1="80" y1="12" x2="80" y2="84"></line>
+                                <line class="court-attack-line" x1="14" y1="28" x2="146" y2="28"></line>
+                                <line class="court-attack-line" x1="14" y1="68" x2="146" y2="68"></line>
+                                <path d="M24 42C46 36 68 38 96 46"></path>
+                                <circle class="shuttle-head" cx="96" cy="46" r="5"></circle>
+                                <path class="feather-line" d="M90 46l-14-11"></path>
+                                <path class="feather-line" d="M91 47l-10-4"></path>
+                                <path class="feather-line" d="M92 44l-8 4"></path>
+                                <path class="feather-line" d="M89 46l-12 9"></path>
+                            </svg>
+                        </div>
                         <h3 class="shot-name">Drop Shot</h3>
-                        <p class="shot-sub">Soft, deceptive placement designed to fall just over the net.</p>
+                        <p class="shot-sub">A soft front-court touch that dies just over the net and pulls forward.</p>
                     </article>
                 </div>
             </div>

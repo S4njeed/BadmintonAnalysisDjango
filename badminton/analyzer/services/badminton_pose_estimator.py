@@ -8,11 +8,64 @@ import cv2
 import numpy as np
 import torch
 from django.conf import settings
-from ultralytics import YOLO
+
+try:
+    from ultralytics import YOLO
+except ImportError:  # pragma: no cover - optional dependency for local test environments
+    YOLO = None  # type: ignore[assignment]
 
 # Basic constants
 EPSILON = 1e-8
 RADIANS_TO_DEGREES = 180.0 / math.pi
+
+
+def _safe_point(keypoints: np.ndarray, index: int, confidence_threshold: float = 0.2) -> Optional[np.ndarray]:
+    """Return a 2D keypoint when it is available and confident enough."""
+    try:
+        if keypoints is None or index < 0 or index >= len(keypoints):
+            return None
+
+        point = keypoints[index]
+        if len(point) < 2:
+            return None
+
+        if len(point) >= 3 and point[2] < confidence_threshold:
+            return None
+
+        return np.array(point[:2], dtype=np.float32)
+    except Exception:
+        return None
+
+
+def _distance_between_points(point_a: Optional[np.ndarray], point_b: Optional[np.ndarray]) -> Optional[float]:
+    """Calculate Euclidean distance between two 2D points."""
+    if point_a is None or point_b is None:
+        return None
+
+    try:
+        return float(np.linalg.norm(point_a[:2] - point_b[:2]))
+    except Exception:
+        return None
+
+
+def _joint_angle(hip: Optional[np.ndarray], knee: Optional[np.ndarray], ankle: Optional[np.ndarray]) -> Optional[float]:
+    """Calculate the angle at the knee joint in degrees."""
+    if hip is None or knee is None or ankle is None:
+        return None
+
+    try:
+        thigh = hip[:2] - knee[:2]
+        calf = ankle[:2] - knee[:2]
+
+        thigh_norm = np.linalg.norm(thigh)
+        calf_norm = np.linalg.norm(calf)
+        if thigh_norm < EPSILON or calf_norm < EPSILON:
+            return None
+
+        cosine = np.clip(np.dot(thigh, calf) / (thigh_norm * calf_norm), -1.0, 1.0)
+        return float(math.degrees(math.acos(cosine)))
+    except Exception:
+        return None
 
 
 @dataclass
@@ -257,7 +310,9 @@ def draw_modern_shuttlecock(frame: np.ndarray, shuttle_box: Optional[np.ndarray]
             pass
 
 
-def draw_modern_info_overlay(frame: np.ndarray, analysis: FrameAnalysis) -> None:
+def draw_modern_info_overlay(frame: np.ndarray, analysis: FrameAnalysis,
+                             footwork_metrics: Optional[Dict[str, Any]] = None,
+                             guidance: Optional[Dict[str, Any]] = None) -> None:
     """Modern info overlay with clean, readable design"""
     h, w = frame.shape[:2]
     
@@ -327,6 +382,171 @@ def draw_modern_info_overlay(frame: np.ndarray, analysis: FrameAnalysis) -> None
     status_x = panel_x + panel_width - int(25 * scale_factor)
     cv2.putText(frame, status_text, (status_x, panel_y + int(22 * scale_factor)), 
                font, font_scale, status_color, thickness, cv2.LINE_AA)
+
+    if not footwork_metrics:
+        return
+
+    guidance = guidance or {}
+    phase_display = phase.replace('_', ' ').upper()
+    footwork_panel_width = min(int(320 * scale_factor), max(1, w - (panel_x * 2)))
+    footwork_panel_height = min(int(132 * scale_factor), max(1, h - (panel_y * 2)))
+    footwork_panel_x = w - footwork_panel_width - panel_x
+    footwork_panel_y = panel_y
+
+    footwork_overlay = frame.copy()
+    cv2.rectangle(
+        footwork_overlay,
+        (footwork_panel_x, footwork_panel_y),
+        (footwork_panel_x + footwork_panel_width, footwork_panel_y + footwork_panel_height),
+        (0, 0, 0),
+        -1
+    )
+    cv2.addWeighted(footwork_overlay, 0.62, frame, 0.38, 0, frame)
+
+    cv2.rectangle(
+        frame,
+        (footwork_panel_x, footwork_panel_y),
+        (footwork_panel_x + footwork_panel_width, footwork_panel_y + footwork_panel_height),
+        (120, 120, 120),
+        1
+    )
+
+    marker_x = footwork_panel_x + int(12 * scale_factor)
+    marker_y = footwork_panel_y + int(18 * scale_factor)
+    cv2.circle(frame, (marker_x, marker_y), max(4, int(5 * scale_factor)), phase_color, -1, cv2.LINE_AA)
+
+    footwork_font_scale = max(0.35, 0.42 * scale_factor)
+    footwork_thickness = max(1, int(1 * scale_factor))
+    footwork_text_x = marker_x + int(15 * scale_factor)
+
+    def shorten_text(text: str, limit: int) -> str:
+        return text if len(text) <= limit else text[:limit - 3].rstrip() + '...'
+
+    pattern_text = shorten_text(guidance.get('pattern', 'split step -> load -> recover').replace(' -> ', ' | '), 58)
+    footwork_flags = footwork_metrics.get('flags') or []
+    cue_text = footwork_flags[0] if footwork_flags else footwork_metrics.get('phase_note', 'Keep the feet active and recover quickly.')
+    cue_text = shorten_text(str(cue_text), 72)
+
+    stance_ratio = footwork_metrics.get('stance_width_ratio')
+    knee_angle = footwork_metrics.get('average_knee_angle')
+    ready_target = footwork_metrics.get('ideal', {}).get('ready_stance_ratio', guidance.get('ideal_ready_stance_ratio', 1.05))
+    recovery_target = footwork_metrics.get('ideal', {}).get('recovery_ratio_target', guidance.get('recovery_ratio_target', 0.75))
+
+    header_text = f"{phase_display} FOOTWORK"
+    cv2.putText(
+        frame,
+        header_text,
+        (footwork_text_x, footwork_panel_y + int(22 * scale_factor)),
+        font,
+        footwork_font_scale,
+        (240, 240, 240),
+        footwork_thickness,
+        cv2.LINE_AA
+    )
+
+    lines = [
+        f"PATTERN: {pattern_text}",
+        f"CUE: {cue_text}",
+        f"STANCE: {stance_ratio:.2f}x" if isinstance(stance_ratio, (int, float)) else "STANCE: --",
+        f"KNEE: {knee_angle:.0f}deg" if isinstance(knee_angle, (int, float)) else "KNEE: --",
+        f"TARGET: {ready_target:.2f}x | RECOVER: {recovery_target:.2f}x"
+    ]
+
+    for line_index, line_text in enumerate(lines):
+        line_y = footwork_panel_y + int((42 + (line_index * 18)) * scale_factor)
+        cv2.putText(
+            frame,
+            shorten_text(line_text, 64),
+            (footwork_text_x, line_y),
+            font,
+            footwork_font_scale * 0.86,
+            (215, 215, 215),
+            footwork_thickness,
+            cv2.LINE_AA
+        )
+
+
+def draw_modern_footwork_tracking(frame: np.ndarray, keypoints: np.ndarray,
+                                  footwork_metrics: Optional[Dict[str, Any]] = None,
+                                  guidance: Optional[Dict[str, Any]] = None,
+                                  phase: str = 'default') -> None:
+    """Highlight lower-body stance width and recovery alignment on the frame."""
+    if keypoints is None or len(keypoints) <= 16:
+        return
+
+    left_ankle = _safe_point(keypoints, 15)
+    right_ankle = _safe_point(keypoints, 16)
+    left_hip = _safe_point(keypoints, 11)
+    right_hip = _safe_point(keypoints, 12)
+
+    if left_ankle is None or right_ankle is None:
+        return
+
+    h, w = frame.shape[:2]
+    scale_factor = min(w, h) / 720.0
+    scale_factor = max(0.6, min(1.4, scale_factor))
+
+    phase_colors = {
+        'pre_hit': (100, 255, 100),
+        'hit': (100, 100, 255),
+        'follow_through': (255, 100, 100),
+        'default': (200, 200, 200)
+    }
+    phase_color = phase_colors.get(phase, phase_colors['default'])
+
+    stance_ratio = footwork_metrics.get('stance_width_ratio') if footwork_metrics else None
+    ready_low, ready_high = guidance.get('ready_stance_range', (0.9, 1.25)) if guidance else (0.9, 1.25)
+
+    if isinstance(stance_ratio, (int, float)):
+        if stance_ratio < ready_low:
+            tracking_color = (80, 80, 255)
+        elif stance_ratio > ready_high:
+            tracking_color = (0, 215, 255)
+        else:
+            tracking_color = (100, 255, 100)
+    else:
+        tracking_color = phase_color
+
+    left_point = (int(left_ankle[0]), int(left_ankle[1]))
+    right_point = (int(right_ankle[0]), int(right_ankle[1]))
+
+    line_thickness = max(2, int(3 * scale_factor))
+    marker_radius = max(5, int(6 * scale_factor))
+    cv2.line(frame, left_point, right_point, tracking_color, line_thickness, cv2.LINE_AA)
+    cv2.circle(frame, left_point, marker_radius, tracking_color, -1, cv2.LINE_AA)
+    cv2.circle(frame, right_point, marker_radius, tracking_color, -1, cv2.LINE_AA)
+    cv2.circle(frame, left_point, marker_radius + 1, (0, 0, 0), 1, cv2.LINE_AA)
+    cv2.circle(frame, right_point, marker_radius + 1, (0, 0, 0), 1, cv2.LINE_AA)
+
+    if left_hip is not None and right_hip is not None:
+        hip_center = ((left_hip + right_hip) * 0.5).astype(np.int32)
+        ankle_center = ((left_ankle + right_ankle) * 0.5).astype(np.int32)
+        cv2.line(
+            frame,
+            (int(hip_center[0]), int(hip_center[1])),
+            (int(ankle_center[0]), int(ankle_center[1])),
+            (180, 180, 180),
+            max(1, int(2 * scale_factor)),
+            cv2.LINE_AA
+        )
+
+    midpoint_x = int((left_point[0] + right_point[0]) * 0.5)
+    midpoint_y = int((left_point[1] + right_point[1]) * 0.5)
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = max(0.35, 0.45 * scale_factor)
+    thickness = max(1, int(1 * scale_factor))
+    label_text = 'BASE'
+    (text_width, text_height), _ = cv2.getTextSize(label_text, font, font_scale, thickness)
+    label_x = max(0, min(w - text_width - 1, midpoint_x - (text_width // 2)))
+    label_y = max(text_height + 2, midpoint_y - int(10 * scale_factor))
+    cv2.rectangle(
+        frame,
+        (label_x - 2, label_y - text_height - 2),
+        (label_x + text_width + 2, label_y + 2),
+        (0, 0, 0),
+        -1
+    )
+    cv2.putText(frame, label_text, (label_x, label_y), font, font_scale, tracking_color, thickness, cv2.LINE_AA)
 
 
 def draw_modern_connection_line(frame: np.ndarray, start_point: Tuple[int, int], 
@@ -432,7 +652,13 @@ class BadmintonVideoTracker:
         'LEFT_ELBOW': 7,
         'RIGHT_ELBOW': 8,
         'LEFT_WRIST': 9,
-        'RIGHT_WRIST': 10
+        'RIGHT_WRIST': 10,
+        'LEFT_HIP': 11,
+        'RIGHT_HIP': 12,
+        'LEFT_KNEE': 13,
+        'RIGHT_KNEE': 14,
+        'LEFT_ANKLE': 15,
+        'RIGHT_ANKLE': 16
     }
 
     # Default connections for skeleton visualization
@@ -469,7 +695,57 @@ class BadmintonVideoTracker:
         }
     }
 
+    FOOTWORK_GUIDANCE = {
+        'smash': {
+            'pattern': 'split step -> rear-court load -> scissor kick or jump out -> recover',
+            'ready_stance_range': (0.95, 1.35),
+            'ideal_ready_stance_ratio': 1.10,
+            'ideal_knee_angle': 145.0,
+            'recovery_ratio_target': 0.65,
+            'pre_hit_note': 'Use a quick split step and get side-on before loading the rear leg.',
+            'hit_note': 'Explode through the contact with a scissor kick or jump out and keep the landing balanced.',
+            'follow_through_note': 'Land wide and recover immediately back to base after contact.'
+        },
+        'clear': {
+            'pattern': 'split step -> chasse / pivot -> rear-court strike -> recover',
+            'ready_stance_range': (1.00, 1.40),
+            'ideal_ready_stance_ratio': 1.15,
+            'ideal_knee_angle': 150.0,
+            'recovery_ratio_target': 0.75,
+            'pre_hit_note': 'Split step early, then chasse and pivot so you get behind the shuttle.',
+            'hit_note': 'Strike from a stable rear-court base with the body turned side-on.',
+            'follow_through_note': 'Push back out of the shot and recover into court balance quickly.'
+        },
+        'drop_shot': {
+            'pattern': 'split step -> quick first step -> controlled lunge -> recover',
+            'ready_stance_range': (0.80, 1.15),
+            'ideal_ready_stance_ratio': 0.95,
+            'ideal_knee_angle': 135.0,
+            'recovery_ratio_target': 0.85,
+            'pre_hit_note': 'Use a small split step and move in with a short, sharp first step.',
+            'hit_note': 'Stay low and control the lunge so you can take the shuttle early at the net.',
+            'follow_through_note': 'Push off the front leg and get back to the base without pausing.'
+        },
+        'default': {
+            'pattern': 'split step -> load -> strike -> recover',
+            'ready_stance_range': (0.90, 1.25),
+            'ideal_ready_stance_ratio': 1.05,
+            'ideal_knee_angle': 145.0,
+            'recovery_ratio_target': 0.75,
+            'pre_hit_note': 'Start with a balanced split step and stay light on your feet.',
+            'hit_note': 'Keep the legs loaded at contact so you can move out of the shot.',
+            'follow_through_note': 'Recover to a neutral base as soon as the shuttle leaves the strings.'
+        }
+    }
+
+    # Shuttle detection search tuning
+    SHUTTLE_SEARCH_PADDING = 24
+    SHUTTLE_SEARCH_EXPANSION = 2.0
+
     def __init__(self, target_shot_type: str = 'smash', model_size: str = 'n'):
+        if YOLO is None:
+            raise ImportError("ultralytics is required for badminton pose estimation")
+
         # Initialize models
         models_dir = getattr(settings, 'YOLO_MODELS_DIR', os.path.join(settings.MEDIA_ROOT, 'models'))
         os.makedirs(models_dir, exist_ok=True)
@@ -554,9 +830,8 @@ class BadmintonVideoTracker:
     def detect_shuttlecock(self, frame: np.ndarray) -> Optional[np.ndarray]:
         """Detect shuttlecock in frame, focusing on upper half with high confidence"""
         h, w = frame.shape[:2]
-        
-        # Search in upper half of frame (shuttlecock is usually in the air)
-        search_frame = frame[:h//2, :]
+
+        search_frame, search_offset = self._build_shuttle_search_region(frame)
         
         # Run detection with higher confidence threshold
         with torch.no_grad():
@@ -577,12 +852,19 @@ class BadmintonVideoTracker:
             if not np.any(high_conf_mask):
                 self.prev_shuttle_box = None
                 return None
+
+            if search_offset != (0, 0):
+                boxes = self._shift_boxes_to_frame(boxes, search_offset[0], search_offset[1])
             
             # Get best detection among high confidence ones
             filtered_boxes = boxes[high_conf_mask]
             filtered_confidences = confidences[high_conf_mask]
             best_idx = np.argmax(filtered_confidences)
-            best_box = filtered_boxes[best_idx]
+            best_box = self._clip_box_to_bounds(filtered_boxes[best_idx], w, h // 2)
+
+            if best_box is None:
+                self.prev_shuttle_box = None
+                return None
             
             # Additional size filtering: shuttlecock should be reasonably sized
             box_width = best_box[2] - best_box[0]
@@ -604,6 +886,61 @@ class BadmintonVideoTracker:
 
         self.prev_shuttle_box = None
         return None
+
+    def _build_shuttle_search_region(self, frame: np.ndarray) -> Tuple[np.ndarray, Tuple[int, int]]:
+        """Build a reduced search region around the previous shuttle detection when possible."""
+        h, w = frame.shape[:2]
+        top_half_limit = max(1, h // 2)
+
+        if self.prev_shuttle_box is None:
+            return frame[:top_half_limit, :], (0, 0)
+
+        try:
+            x1, y1, x2, y2 = [float(value) for value in self.prev_shuttle_box[:4]]
+            box_width = max(1.0, x2 - x1)
+            box_height = max(1.0, y2 - y1)
+
+            pad_x = max(self.SHUTTLE_SEARCH_PADDING, int(box_width * self.SHUTTLE_SEARCH_EXPANSION))
+            pad_y = max(self.SHUTTLE_SEARCH_PADDING, int(box_height * self.SHUTTLE_SEARCH_EXPANSION))
+
+            roi_x1 = max(0, int(x1 - pad_x))
+            roi_y1 = max(0, int(y1 - pad_y))
+            roi_x2 = min(w, int(x2 + pad_x))
+            roi_y2 = min(top_half_limit, int(y2 + pad_y))
+
+            if roi_x2 > roi_x1 and roi_y2 > roi_y1:
+                roi_area = (roi_x2 - roi_x1) * (roi_y2 - roi_y1)
+                top_half_area = w * top_half_limit
+
+                # Only use the ROI if it is meaningfully smaller than the full search area.
+                if roi_area < top_half_area * 0.9:
+                    return frame[roi_y1:roi_y2, roi_x1:roi_x2], (roi_x1, roi_y1)
+        except Exception:
+            pass
+
+        return frame[:top_half_limit, :], (0, 0)
+
+    @staticmethod
+    def _shift_boxes_to_frame(boxes: np.ndarray, offset_x: int, offset_y: int) -> np.ndarray:
+        """Shift model output boxes back into full-frame coordinates."""
+        shifted = boxes.copy()
+        shifted[:, [0, 2]] += offset_x
+        shifted[:, [1, 3]] += offset_y
+        return shifted
+
+    @staticmethod
+    def _clip_box_to_bounds(box: np.ndarray, max_width: int, max_height: int) -> Optional[np.ndarray]:
+        """Clip a box to frame bounds and reject degenerate results."""
+        clipped = np.array(box, dtype=np.float32).copy()
+        clipped[0] = max(0.0, min(clipped[0], max_width - 1))
+        clipped[1] = max(0.0, min(clipped[1], max_height - 1))
+        clipped[2] = max(0.0, min(clipped[2], max_width - 1))
+        clipped[3] = max(0.0, min(clipped[3], max_height - 1))
+
+        if clipped[2] <= clipped[0] or clipped[3] <= clipped[1]:
+            return None
+
+        return clipped
 
     def calculate_grip_angle(self, keypoints: np.ndarray) -> float:
         """Calculate grip angle between upper arm and forearm"""
@@ -657,6 +994,172 @@ class BadmintonVideoTracker:
             
         except (IndexError, ValueError):
             return 0.0
+
+    def _calculate_footwork_phase_metrics(self, keypoints: np.ndarray, phase: str) -> Dict[str, Any]:
+        """Extract footwork metrics for a single key frame."""
+        guidance = self.FOOTWORK_GUIDANCE.get(self.target_shot_type, self.FOOTWORK_GUIDANCE['default'])
+
+        left_shoulder = _safe_point(keypoints, self.KEYPOINTS['LEFT_SHOULDER'])
+        right_shoulder = _safe_point(keypoints, self.KEYPOINTS['RIGHT_SHOULDER'])
+        left_hip = _safe_point(keypoints, self.KEYPOINTS['LEFT_HIP'])
+        right_hip = _safe_point(keypoints, self.KEYPOINTS['RIGHT_HIP'])
+        left_knee = _safe_point(keypoints, self.KEYPOINTS['LEFT_KNEE'])
+        right_knee = _safe_point(keypoints, self.KEYPOINTS['RIGHT_KNEE'])
+        left_ankle = _safe_point(keypoints, self.KEYPOINTS['LEFT_ANKLE'])
+        right_ankle = _safe_point(keypoints, self.KEYPOINTS['RIGHT_ANKLE'])
+
+        shoulder_width = _distance_between_points(left_shoulder, right_shoulder)
+        hip_width = _distance_between_points(left_hip, right_hip)
+        stance_width = _distance_between_points(left_ankle, right_ankle)
+
+        ankle_span_x = None
+        ankle_span_y = None
+        if left_ankle is not None and right_ankle is not None:
+            ankle_span_x = float(abs(left_ankle[0] - right_ankle[0]))
+            ankle_span_y = float(abs(left_ankle[1] - right_ankle[1]))
+
+        stance_width_ratio = None
+        if stance_width is not None and shoulder_width is not None and shoulder_width > EPSILON:
+            stance_width_ratio = stance_width / shoulder_width
+
+        left_knee_angle = _joint_angle(left_hip, left_knee, left_ankle)
+        right_knee_angle = _joint_angle(right_hip, right_knee, right_ankle)
+        knee_angles = [angle for angle in [left_knee_angle, right_knee_angle] if isinstance(angle, (int, float))]
+        average_knee_angle = float(sum(knee_angles) / len(knee_angles)) if knee_angles else None
+
+        hip_center = None
+        if left_hip is not None and right_hip is not None:
+            hip_center = ((left_hip + right_hip) * 0.5).tolist()
+
+        ankle_center = None
+        if left_ankle is not None and right_ankle is not None:
+            ankle_center = ((left_ankle + right_ankle) * 0.5).tolist()
+
+        phase_note_key = f'{phase}_note'
+        phase_note = guidance.get(phase_note_key, guidance['pre_hit_note'])
+
+        target_range_low, target_range_high = guidance['ready_stance_range']
+        footwork_flags = []
+        if phase == 'pre_hit' and stance_width_ratio is not None:
+            if stance_width_ratio < target_range_low:
+                footwork_flags.append('Base is too narrow for an explosive split step.')
+            elif stance_width_ratio > target_range_high:
+                footwork_flags.append('Base is too wide, which will slow the first push-off.')
+
+        if phase == 'hit' and average_knee_angle is not None:
+            if average_knee_angle > guidance['ideal_knee_angle'] + 12:
+                footwork_flags.append('You are too upright at contact; sink a little lower into the lunge or scissor.')
+            elif average_knee_angle < guidance['ideal_knee_angle'] - 18:
+                footwork_flags.append('You are sitting very deep; stay low but keep the movement compact.')
+
+        if phase == 'follow_through' and stance_width_ratio is not None:
+            if stance_width_ratio < target_range_low:
+                footwork_flags.append('Recovery foot placement is too tight; re-open the base sooner.')
+            elif stance_width_ratio > target_range_high + 0.15:
+                footwork_flags.append('Recovery is still too spread out; tighten the landing and push back to base faster.')
+
+        return {
+            'phase': phase,
+            'stance_width': stance_width,
+            'stance_width_ratio': stance_width_ratio,
+            'shoulder_width': shoulder_width,
+            'hip_width': hip_width,
+            'ankle_span_x': ankle_span_x,
+            'ankle_span_y': ankle_span_y,
+            'left_knee_angle': left_knee_angle,
+            'right_knee_angle': right_knee_angle,
+            'average_knee_angle': average_knee_angle,
+            'hip_center': hip_center,
+            'ankle_center': ankle_center,
+            'phase_note': phase_note,
+            'flags': footwork_flags,
+            'ideal': {
+                'ready_stance_ratio': guidance['ideal_ready_stance_ratio'],
+                'knee_angle': guidance['ideal_knee_angle'],
+                'recovery_ratio_target': guidance['recovery_ratio_target']
+            }
+        }
+
+    def _build_footwork_summary(self, phase_metrics: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+        """Create a shot-specific footwork summary from the key frame metrics."""
+        guidance = self.FOOTWORK_GUIDANCE.get(self.target_shot_type, self.FOOTWORK_GUIDANCE['default'])
+        pre_hit = phase_metrics.get('pre_hit', {})
+        hit = phase_metrics.get('hit', {})
+        follow_through = phase_metrics.get('follow_through', {})
+
+        ready_low, ready_high = guidance['ready_stance_range']
+        focus_areas = []
+        recommendations = []
+        phase_feedback = {
+            'pre_hit': pre_hit.get('phase_note', guidance['pre_hit_note']),
+            'hit': hit.get('phase_note', guidance['hit_note']),
+            'follow_through': follow_through.get('phase_note', guidance['follow_through_note'])
+        }
+
+        for phase_name, metrics in [('pre_hit', pre_hit), ('hit', hit), ('follow_through', follow_through)]:
+            stance_ratio = metrics.get('stance_width_ratio')
+            knee_angle = metrics.get('average_knee_angle')
+
+            if phase_name == 'pre_hit' and stance_ratio is not None:
+                if stance_ratio < ready_low:
+                    focus_areas.append('split step balance')
+                    recommendations.append('Widen the split step and land lighter on the balls of your feet.')
+                elif stance_ratio > ready_high:
+                    focus_areas.append('first-step explosiveness')
+                    recommendations.append('Tighten the ready stance so you can push off faster.')
+
+            if phase_name == 'hit' and knee_angle is not None:
+                if knee_angle > guidance['ideal_knee_angle'] + 10:
+                    focus_areas.append('loading into the shot')
+                    recommendations.append('Sink lower into the lunge or scissor so the legs can drive the shot.')
+                elif knee_angle < guidance['ideal_knee_angle'] - 15:
+                    focus_areas.append('compact contact posture')
+                    recommendations.append('Stay low, but keep the contact compact and balanced.')
+
+            if phase_name == 'follow_through' and stance_ratio is not None:
+                if stance_ratio < ready_low:
+                    focus_areas.append('recovery positioning')
+                    recommendations.append('Push off the racket leg sooner and reopen your base after contact.')
+                elif stance_ratio > ready_high + 0.15:
+                    focus_areas.append('recovery speed')
+                    recommendations.append('Recover back to a neutral base faster after the follow-through.')
+
+        if not focus_areas:
+            focus_areas.extend([item for item in [
+                'split step timing',
+                'landing balance',
+                'recovery speed'
+            ] if item not in focus_areas])
+
+        if not recommendations:
+            recommendations = [
+                'Keep the feet active between strokes and stay ready on the balls of your feet.',
+                'Recover to a neutral base immediately after each shot.'
+            ]
+
+        overall_parts = [f"Your {self.target_shot_type.replace('_', ' ')} footwork follows the expected {guidance['pattern']} rhythm."]
+        if phase_feedback['pre_hit']:
+            overall_parts.append(phase_feedback['pre_hit'])
+        if phase_feedback['hit']:
+            overall_parts.append(phase_feedback['hit'])
+        if phase_feedback['follow_through']:
+            overall_parts.append(phase_feedback['follow_through'])
+
+        return {
+            'overall_assessment': ' '.join(overall_parts).strip(),
+            'movement_pattern': guidance['pattern'],
+            'phase_metrics': phase_metrics,
+            'phase_feedback': phase_feedback,
+            'focus_areas': focus_areas[:3],
+            'recommendations': recommendations[:3],
+            'targets': {
+                'ready_stance_ratio_low': ready_low,
+                'ready_stance_ratio_high': ready_high,
+                'ideal_ready_stance_ratio': guidance['ideal_ready_stance_ratio'],
+                'ideal_knee_angle': guidance['ideal_knee_angle'],
+                'recovery_ratio_target': guidance['recovery_ratio_target']
+            }
+        }
 
     def process_video_frame(self, frame: np.ndarray, timestamp: float, frame_count: int = 0) -> Tuple[
         np.ndarray, Optional[Dict]]:
@@ -741,7 +1244,7 @@ class BadmintonVideoTracker:
     def validate_keypoints(self, keypoints_data: torch.Tensor) -> bool:
         """Fast keypoints validation with minimal checks"""
         return (keypoints_data.numel() > 0 and 
-                keypoints_data.shape[1] > self.KEYPOINTS['RIGHT_WRIST'])
+                keypoints_data.shape[1] > self.KEYPOINTS['RIGHT_ANKLE'])
 
     def update_tracked_player(self, pose_results: Any) -> None:
         """Optimized player tracking with minimal CPU transfers"""
@@ -1026,20 +1529,32 @@ class BadmintonVideoTracker:
         connections = [
             (self.KEYPOINTS['LEFT_SHOULDER'], self.KEYPOINTS['RIGHT_SHOULDER']),
             (self.KEYPOINTS['RIGHT_SHOULDER'], self.KEYPOINTS['RIGHT_ELBOW']),
-            (self.KEYPOINTS['RIGHT_ELBOW'], self.KEYPOINTS['RIGHT_WRIST'])
+            (self.KEYPOINTS['RIGHT_ELBOW'], self.KEYPOINTS['RIGHT_WRIST']),
+            (self.KEYPOINTS['LEFT_SHOULDER'], self.KEYPOINTS['LEFT_HIP']),
+            (self.KEYPOINTS['RIGHT_SHOULDER'], self.KEYPOINTS['RIGHT_HIP']),
+            (self.KEYPOINTS['LEFT_HIP'], self.KEYPOINTS['RIGHT_HIP']),
+            (self.KEYPOINTS['LEFT_HIP'], self.KEYPOINTS['LEFT_KNEE']),
+            (self.KEYPOINTS['RIGHT_HIP'], self.KEYPOINTS['RIGHT_KNEE']),
+            (self.KEYPOINTS['LEFT_KNEE'], self.KEYPOINTS['LEFT_ANKLE']),
+            (self.KEYPOINTS['RIGHT_KNEE'], self.KEYPOINTS['RIGHT_ANKLE'])
         ]
 
         # Get phase for styling
         phase = analysis.shot_phase or 'default'
+        footwork_guidance = self.FOOTWORK_GUIDANCE.get(self.target_shot_type, self.FOOTWORK_GUIDANCE['default'])
+        footwork_metrics = self._calculate_footwork_phase_metrics(keypoints, phase)
 
         # Draw modern skeleton
         draw_modern_skeleton(viz_frame, keypoints, connections, (0, 0, 0), phase)
         
         # Draw modern shuttlecock
         draw_modern_shuttlecock(viz_frame, shuttle_box)
+
+        # Draw lower-body footwork tracking
+        draw_modern_footwork_tracking(viz_frame, keypoints, footwork_metrics, footwork_guidance, phase)
         
         # Draw modern info overlay
-        draw_modern_info_overlay(viz_frame, analysis)
+        draw_modern_info_overlay(viz_frame, analysis, footwork_metrics, footwork_guidance)
 
         # Draw connection line between wrist and shuttlecock
         if shuttle_box is not None:
@@ -1074,6 +1589,7 @@ class BadmintonVideoTracker:
             calculated_angles = {}
             ideal_angles_data = {}
             angle_differences = {}
+            footwork_phase_metrics = {}
             
             # Cache shot thresholds
             shot_thresholds = self.SHOT_THRESHOLDS.get(self.target_shot_type, {})
@@ -1165,6 +1681,63 @@ class BadmintonVideoTracker:
                 else:
                     angle_differences[phase] = None
 
+                if data and 'keypoints' in data:
+                    keypoints_data = data['keypoints']
+                    if isinstance(keypoints_data, list):
+                        keypoints = np.array(keypoints_data)
+                    else:
+                        keypoints = keypoints_data
+
+                    if (isinstance(keypoints, np.ndarray) and len(keypoints.shape) >= 2 and
+                            keypoints.shape[0] > self.KEYPOINTS['RIGHT_ANKLE']):
+                        footwork_phase_metrics[phase] = self._calculate_footwork_phase_metrics(keypoints, phase)
+                    else:
+                        footwork_phase_metrics[phase] = {
+                            'phase': phase,
+                            'stance_width': None,
+                            'stance_width_ratio': None,
+                            'shoulder_width': None,
+                            'hip_width': None,
+                            'ankle_span_x': None,
+                            'ankle_span_y': None,
+                            'left_knee_angle': None,
+                            'right_knee_angle': None,
+                            'average_knee_angle': None,
+                            'hip_center': None,
+                            'ankle_center': None,
+                            'phase_note': '',
+                            'flags': [],
+                            'ideal': {
+                                'ready_stance_ratio': None,
+                                'knee_angle': None,
+                                'recovery_ratio_target': None
+                            }
+                        }
+                else:
+                    footwork_phase_metrics[phase] = {
+                        'phase': phase,
+                        'stance_width': None,
+                        'stance_width_ratio': None,
+                        'shoulder_width': None,
+                        'hip_width': None,
+                        'ankle_span_x': None,
+                        'ankle_span_y': None,
+                        'left_knee_angle': None,
+                        'right_knee_angle': None,
+                        'average_knee_angle': None,
+                        'hip_center': None,
+                        'ankle_center': None,
+                        'phase_note': '',
+                        'flags': [],
+                        'ideal': {
+                            'ready_stance_ratio': None,
+                            'knee_angle': None,
+                            'recovery_ratio_target': None
+                        }
+                    }
+
+            footwork_summary = self._build_footwork_summary(footwork_phase_metrics)
+
             return {
                 'status': 'complete',
                 'shot_type': self.target_shot_type,
@@ -1172,7 +1745,8 @@ class BadmintonVideoTracker:
                 'timing': timing_data,
                 'angles': calculated_angles,
                 'ideal_angles': ideal_angles_data,
-                'angle_differences': angle_differences
+                'angle_differences': angle_differences,
+                'footwork': footwork_summary
             }
             
         except Exception as e:

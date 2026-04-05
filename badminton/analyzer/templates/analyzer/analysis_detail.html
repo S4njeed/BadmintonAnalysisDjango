@@ -1027,6 +1027,67 @@
                                     </table>
                                 </div>
                             </div>
+
+                            {% if analysis.analysis_summary.footwork %}
+                            <div class="mb-3">
+                                <h4 class="h6">
+                                    <i class="fas fa-shoe-prints me-1"></i>Footwork Analysis
+                                </h4>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover">
+                                        <tbody>
+                                            <tr>
+                                                <td>
+                                                    <i class="fas fa-route text-primary me-1"></i>
+                                                    Movement Pattern:
+                                                </td>
+                                                <td class="fw-bold">{{ analysis.analysis_summary.footwork.movement_pattern }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <i class="fas fa-bullseye text-success me-1"></i>
+                                                    Pre-Hit Stance:
+                                                </td>
+                                                <td class="fw-bold">
+                                                    {% with ready_ratio=analysis.analysis_summary.footwork.phase_metrics.pre_hit.stance_width_ratio %}
+                                                        {% if ready_ratio %}{{ ready_ratio|floatformat:2 }}x shoulder width{% else %}N/A{% endif %}
+                                                    {% endwith %}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <i class="fas fa-person-running text-warning me-1"></i>
+                                                    Hit Knee Angle:
+                                                </td>
+                                                <td class="fw-bold">
+                                                    {% with knee_angle=analysis.analysis_summary.footwork.phase_metrics.hit.average_knee_angle %}
+                                                        {% if knee_angle %}{{ knee_angle|floatformat:1 }}&deg;{% else %}N/A{% endif %}
+                                                    {% endwith %}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <i class="fas fa-rotate-right text-info me-1"></i>
+                                                    Recovery Stance:
+                                                </td>
+                                                <td class="fw-bold">
+                                                    {% with recovery_ratio=analysis.analysis_summary.footwork.phase_metrics.follow_through.stance_width_ratio %}
+                                                        {% if recovery_ratio %}{{ recovery_ratio|floatformat:2 }}x shoulder width{% else %}N/A{% endif %}
+                                                    {% endwith %}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="alert alert-info mb-0">
+                                    <ul class="mb-0 ps-3">
+                                        <li>{{ analysis.analysis_summary.footwork.phase_feedback.pre_hit }}</li>
+                                        <li>{{ analysis.analysis_summary.footwork.phase_feedback.hit }}</li>
+                                        <li>{{ analysis.analysis_summary.footwork.phase_feedback.follow_through }}</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            {% endif %}
                         {% else %}
                             <div class="alert alert-warning">
                                 <h4 class="alert-heading h6">
@@ -1070,7 +1131,7 @@
                             <tbody>
                                 {# Pre-Hit Row - Use pre-calculated difference #}
                                 {% with diff=analysis.analysis_summary.angle_differences.pre_hit %}
-                                <tr class="{% if diff is not None and diff != 0 %}table-warning fw-bold{% endif %}">
+                                <tr class="{% if diff is not None and diff != 0 %}table-warning text-white fw-bold{% endif %}">
                                     <td class="fw-bold">
                                         <i class="fas fa-arrow-left text-primary me-1"></i>
                                         Pre-Hit

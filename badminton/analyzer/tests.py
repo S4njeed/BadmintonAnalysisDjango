@@ -1,6 +1,7 @@
 import unittest
 import os
 from io import BytesIO
+import time
 import numpy as np
 import torch
 import math
@@ -27,6 +28,7 @@ try:
         DjangoVideoAnalysisApp,
         # Removed import for make_json_serializable as it's internal
     )
+    from analyzer.services.ollama_feedback_service import generate_feedback
     # from analyzer.services.ollama_feedback_service import generate_feedback
     SERVICES_IMPORTED = True
 except ImportError as e:
@@ -200,6 +202,33 @@ class BadmintonVideoTrackerLogicTests(TestCase):
              self.skipTest("Skipping W4: BadmintonVideoTracker missing 'detect_shuttlecock'.")
 
 
+    def test_w4b_detect_shuttlecock_uses_previous_roi(self, MockYolo):
+        MockYolo.side_effect = self.MockYoloClass.side_effect
+        try:
+            tracker_instance = BadmintonVideoTracker()
+            mock_shuttle_model_instance = tracker_instance.shuttle_model
+
+            mock_boxes_data = mock.MagicMock()
+            mock_boxes_data.conf.cpu().numpy.return_value = np.array([0.9])
+            mock_boxes_data.xyxy.cpu().numpy.return_value = np.array([[10., 10., 20., 20.]])
+            mock_result_with_boxes = mock.MagicMock()
+            mock_result_with_boxes.boxes = mock_boxes_data
+            mock_shuttle_model_instance.return_value = [mock_result_with_boxes]
+
+            tracker_instance.prev_shuttle_box = np.array([100., 20., 120., 40.])
+            frame = create_mock_frame(height=200, width=300)
+            result = tracker_instance.detect_shuttlecock(frame)
+
+            called_frame = mock_shuttle_model_instance.call_args.args[0]
+            self.assertEqual(called_frame.shape, (80, 100, 3))
+            self.assertIsNotNone(result)
+            if result is not None:
+                np.testing.assert_array_almost_equal(result, np.array([70., 10., 80., 20.]))
+
+        except AttributeError:
+             self.skipTest("Skipping W4b: BadmintonVideoTracker missing shuttle ROI optimization.")
+
+
     def test_w5_calculate_grip_angle(self, MockYolo):
         MockYolo.side_effect = self.MockYoloClass.side_effect
         try:
@@ -353,6 +382,11 @@ class BadmintonVideoTrackerLogicTests(TestCase):
             self.assertEqual(summary['status'], 'complete')
             self.assertAlmostEqual(summary['timing']['preparation_time'], 0.5)
             self.assertAlmostEqual(summary['timing']['follow_through_time'], 0.6)
+            self.assertIn('footwork', summary)
+            self.assertIn('movement_pattern', summary['footwork'])
+            self.assertIn('phase_metrics', summary['footwork'])
+            self.assertIn('pre_hit', summary['footwork']['phase_metrics'])
+            self.assertIsNotNone(summary['footwork']['phase_metrics']['pre_hit']['stance_width_ratio'])
 
             tracker.key_frames['hit'] = {'frame': mock_frame, 'keypoints': mock_kp} # Missing timestamp
             summary = tracker.get_technique_summary()
@@ -364,6 +398,47 @@ class BadmintonVideoTrackerLogicTests(TestCase):
              self.skipTest("Skipping W10: BadmintonVideoTracker missing 'get_technique_summary'.")
         except KeyError:
              self.fail("Test W10 failed: Check SHOT_THRESHOLDS or KEYPOINTS definition.")
+
+
+    def test_w11_visualize_analysis_draws_footwork_tracking(self, MockYolo):
+        """W11: Test that the video overlay shows lower-body footwork tracking."""
+        MockYolo.side_effect = self.MockYoloClass.side_effect
+        try:
+            tracker = BadmintonVideoTracker(target_shot_type='smash')
+
+            frame = create_mock_frame()
+            keypoints = np.zeros((17, 3), dtype=np.float32)
+            keypoints[5] = [260, 180, 0.95]
+            keypoints[6] = [340, 175, 0.95]
+            keypoints[7] = [370, 210, 0.95]
+            keypoints[8] = [400, 245, 0.95]
+            keypoints[9] = [430, 290, 0.95]
+            keypoints[10] = [440, 300, 0.95]
+            keypoints[11] = [250, 260, 0.95]
+            keypoints[12] = [320, 260, 0.95]
+            keypoints[13] = [240, 320, 0.95]
+            keypoints[14] = [330, 330, 0.95]
+            keypoints[15] = [220, 380, 0.95]
+            keypoints[16] = [340, 382, 0.95]
+
+            analysis = FrameAnalysis(
+                timestamp=1.2,
+                grip_angle=140.0,
+                shoulder_angle=75.0,
+                shot_type='smash',
+                shot_phase='pre_hit',
+                within_threshold=True,
+                keypoints=keypoints
+            )
+
+            viz_frame = tracker.visualize_analysis(frame, analysis, None)
+
+            self.assertTrue(np.any(viz_frame[380, 220] != 0), "Left ankle marker was not drawn")
+            self.assertTrue(np.any(viz_frame[382, 340] != 0), "Right ankle marker was not drawn")
+            self.assertTrue(np.any(viz_frame[381, 280] != 0), "Footwork stance line was not drawn")
+
+        except AttributeError:
+             self.skipTest("Skipping W11: BadmintonVideoTracker missing 'visualize_analysis'.")
 
 
 @unittest.skipUnless(SERVICES_IMPORTED, "Skipping DjangoVideoAnalysisApp tests due to import errors.")
@@ -477,7 +552,27 @@ class DjangoVideoAnalysisAppTests(TestCase):
              self.skipTest("Skipping W12: DjangoVideoAnalysisApp missing 'save_frame_as_image'.")
 
 
-    # W13 is removed as make_json_serializable is internal to analyze_video
+    def test_w13_analysis_should_stop_throttles_db_refresh(self, mock_generate_feedback, mock_content_file, mock_imencode, mock_open, mock_path_exists, MockTracker, mock_popen, mock_videocapture):
+        service = DjangoVideoAnalysisApp(analysis_model=self.mock_analysis_model)
+        service.analysis_job = mock.MagicMock()
+        service.analysis_job.cancel_requested = False
+        service.analysis_job.refresh_from_db = mock.MagicMock()
+        service._stop_check_interval_seconds = 60.0
+        service._stop_check_interval_frames = 100
+        service._last_stop_check_at = time.monotonic()
+        service._last_stop_check_frame = 0
+        service._cached_stop_requested = False
+        service._frame_count = 1
+
+        self.assertFalse(service._analysis_should_stop())
+        service.analysis_job.refresh_from_db.assert_not_called()
+
+        service._last_stop_check_at = 0.0
+        self.assertFalse(service._analysis_should_stop())
+        service.analysis_job.refresh_from_db.assert_called_once_with(fields=['cancel_requested'])
+
+
+    # W14 is removed as make_json_serializable is internal to analyze_video
 
 
 class ViewTests(TestCase):
@@ -685,3 +780,95 @@ class ModelTests(TestCase):
         self.assertFalse(os.path.exists(input_path), f"Input file not deleted: {input_path}")
         self.assertFalse(os.path.exists(output_path), f"Output file not deleted: {output_path}")
         self.assertFalse(os.path.exists(frame_path), f"Frame file not deleted: {frame_path}")
+
+
+@unittest.skipUnless(SERVICES_IMPORTED, "Skipping Ollama feedback tests due to import errors.")
+class OllamaFeedbackServiceTests(TestCase):
+    @mock.patch('analyzer.services.ollama_feedback_service.ollama.chat')
+    def test_w23_generate_feedback_returns_ollama_text(self, mock_chat):
+        mock_chat.return_value = {
+            'message': {
+                'content': 'Keep your elbow higher on the pre-hit phase and start the swing a little earlier.'
+            }
+        }
+
+        analysis_summary = {
+            'status': 'complete',
+            'shot_type': 'smash',
+            'angles': {'pre_hit': 92.0},
+            'ideal_angles': {'pre_hit': 90.0},
+            'angle_differences': {'pre_hit': 2.0},
+            'timing': {'preparation_time': 0.55, 'follow_through_time': 0.42},
+            'footwork': {
+                'overall_assessment': 'Your smash footwork follows split step -> rear-court load -> scissor kick or jump out -> recover rhythm.',
+                'movement_pattern': 'split step -> rear-court load -> scissor kick or jump out -> recover',
+                'phase_metrics': {
+                    'pre_hit': {'stance_width_ratio': 1.02},
+                    'hit': {'average_knee_angle': 148.0},
+                    'follow_through': {'stance_width_ratio': 1.00},
+                },
+                'phase_feedback': {
+                    'pre_hit': 'Use a quick split step and get side-on before loading the rear leg.',
+                    'hit': 'Explode through the contact with a scissor kick or jump out and keep the landing balanced.',
+                    'follow_through': 'Land wide and recover immediately back to base after contact.',
+                },
+                'targets': {
+                    'ready_stance_ratio_low': 0.95,
+                    'ready_stance_ratio_high': 1.35,
+                    'ideal_ready_stance_ratio': 1.10,
+                    'ideal_knee_angle': 145.0,
+                    'recovery_ratio_target': 0.65,
+                }
+            },
+        }
+
+        feedback = generate_feedback(analysis_summary)
+
+        self.assertIn('Keep your elbow higher on the pre-hit phase and start the swing a little earlier.', feedback)
+        self.assertIn('TECHNIQUE ANALYSIS:', feedback)
+        self.assertIn('SHOT TECHNIQUE:', feedback)
+        self.assertIn('FOOTWORK:', feedback)
+        mock_chat.assert_called_once()
+        self.assertEqual(mock_chat.call_args.kwargs['model'], 'gemma4:e4b')
+        self.assertIn('footwork', mock_chat.call_args.kwargs['messages'][0]['content'].lower())
+
+    @mock.patch('analyzer.services.ollama_feedback_service.ollama.chat')
+    def test_w24_generate_feedback_fallback_includes_footwork(self, mock_chat):
+        mock_chat.side_effect = Exception('ollama unavailable')
+
+        analysis_summary = {
+            'status': 'complete',
+            'shot_type': 'drop_shot',
+            'angles': {'pre_hit': 88.0},
+            'ideal_angles': {'pre_hit': 90.0},
+            'angle_differences': {'pre_hit': -2.0},
+            'timing': {'preparation_time': 0.92, 'follow_through_time': 0.31},
+            'footwork': {
+                'overall_assessment': 'Your drop shot footwork follows split step -> quick first step -> controlled lunge -> recover rhythm.',
+                'movement_pattern': 'split step -> quick first step -> controlled lunge -> recover',
+                'phase_metrics': {
+                    'pre_hit': {'stance_width_ratio': 0.72},
+                    'hit': {'average_knee_angle': 162.0},
+                    'follow_through': {'stance_width_ratio': 0.78},
+                },
+                'phase_feedback': {
+                    'pre_hit': 'Use a small split step and move in with a short, sharp first step.',
+                    'hit': 'Stay low and control the lunge so you can take the shuttle early at the net.',
+                    'follow_through': 'Push off the front leg and get back to the base without pausing.',
+                },
+                'targets': {
+                    'ready_stance_ratio_low': 0.80,
+                    'ready_stance_ratio_high': 1.15,
+                    'ideal_ready_stance_ratio': 0.95,
+                    'ideal_knee_angle': 135.0,
+                    'recovery_ratio_target': 0.85,
+                }
+            },
+        }
+
+        feedback = generate_feedback(analysis_summary)
+
+        self.assertIn('TECHNIQUE ANALYSIS:', feedback)
+        self.assertIn('FOOTWORK:', feedback)
+        self.assertIn('split step', feedback.lower())
+        self.assertIn('recover', feedback.lower())
